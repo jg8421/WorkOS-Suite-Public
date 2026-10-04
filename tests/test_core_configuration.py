@@ -282,7 +282,7 @@ class RealCoreConfigurationTests(unittest.TestCase):
         self.assertEqual(public['origin'], PUBLIC_ORIGIN)
         self.assertEqual(public['auth_mode'], 'password')
         self.assertTrue(public['password_configured'])
-        self.assertEqual(self.core.data_dir, self.folder / 'core')
+        self.assertEqual(self.core.data_dir, (self.folder / 'core').resolve())
         self.assertTrue((self.folder / 'core' / 'personal.sqlite3').is_file())
         self.assertTrue((self.folder / 'selected-mirror' / 'Sync' / 'workspace-personal.json').is_file())
         self.assertFalse((self.folder / 'not-selected-mirror').exists())
