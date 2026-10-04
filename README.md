@@ -4,11 +4,11 @@
 
 ## 使用
 
-从本仓库 **Releases** 下载 `WorkOS-Suite-1.0.2-windows-x64-complete.zip`，完整解压到任意本机文件夹，双击 **Start-Suite.cmd**。不需要先安装 Python、Node 或 npm。入口为 `http://127.0.0.1:18880/`，快捷方式可指向这个启动器。
+从本仓库 **Releases** 下载 `WorkOS-Suite-1.0.3-windows-x64-complete.zip`，完整解压到任意本机文件夹，双击 **Start-Suite.cmd**。不需要先安装 Python、Node 或 npm。入口为 `http://127.0.0.1:18880/`，快捷方式可指向这个启动器。
 
 包里包含 Python、Node、七个组件、完整文件工作台和进程管理器所需的 Tk / Tcl 与界面依赖、文件解析和交付依赖、ADB、scrcpy，以及记忆助手 Android 安装包。官方千问账号、模型账号、Office 和手机授权需要在新机器配置；个人项目、记忆和登录信息不会随安装包复制。使用 **Check-Environment.cmd** 查看哪些条件已经满足。
 
-手机镜像使用 FFmpeg 的 LGPL 2.1 动态库；[对应源码 ZIP](https://github.com/jg8421/WorkOS-Suite-Public/releases/download/v1.0.2/WorkOS-Suite-1.0.2-corresponding-sources.zip) 与安装包在同一 Release 提供。[完整第三方许可与构建来源](docs/PUBLIC_THIRD_PARTY.md) 随包交付。
+手机镜像使用 FFmpeg 的 LGPL 2.1 动态库；[对应源码 ZIP](https://github.com/jg8421/WorkOS-Suite-Public/releases/download/v1.0.3/WorkOS-Suite-1.0.3-corresponding-sources.zip) 与安装包在同一 Release 提供。[完整第三方许可与构建来源](docs/PUBLIC_THIRD_PARTY.md) 随包交付。
 
 包含 PyMuPDF / MuPDF 1.28.2 的原生文件 GUI 组合依 GNU AGPLv3 分发；原有自有源码的 MIT 告知及第三方各自许可证均保留。AGPL 全文随二进制交付，该版本对应源码与构建说明在同一 Release 的源码资产提供。详见[原生界面依赖与许可](docs/NATIVE_GUI_THIRD_PARTY.md)。
 

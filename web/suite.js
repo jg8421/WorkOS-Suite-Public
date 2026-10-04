@@ -12,7 +12,7 @@
   ];
   const titles = {workos:'工作台',ideas:'灵感收件箱',files:'文件管理',memory:'记录与记忆',qwen:'千问录音整理',phone:'手机互联',processes:'进程管理',runtime:'工具与运行状态'};
   const state = {view:'workos',csrf:'',bootstrap:{components:[],roots:[],repositories:[]},projects:[],ideas:[],rootId:store.get('suite.root'),path:'',selected:null,files:[],processes:[],renderId:0,trashReceipt:null,
-    fileSelection:new Set(),fileFocus:-1,fileAnchor:-1,fileLocation:'',fileHistory:[],fileHistoryIndex:-1,fileQuery:'',fileSearchMode:'folder',fileSearchToken:0,filePreviewToken:0,fileClipboard:null,fileBusy:false,trashReceipts:[]};
+    fileSelection:new Set(),fileFocus:-1,fileAnchor:-1,fileLocation:'',fileHistory:[],fileHistoryIndex:-1,fileQuery:'',fileSearchMode:'folder',fileSearchToken:0,filePreviewToken:0,fileClipboard:null,fileBusy:false,fileNavigating:null,fileNavigationToken:0,trashReceipts:[]};
   let toastTimer,qwenStatusTimer;
   function toast(message, error = false) {
     const el = $('#toast'); el.textContent = message; el.classList.toggle('error', error); el.classList.remove('hidden');
@@ -63,6 +63,8 @@
   }
   function navigate(view) {
     clearTimeout(qwenStatusTimer);
+    // A late directory response cannot retain a lock or change another page.
+    state.fileNavigating=null;++state.fileNavigationToken;++state.filePreviewToken;
     if (groups.some(group => group.id === view)) view = groups.find(group => group.id === view).views[0][0];
     if (!titles[view]) view = 'workos';
     state.view = view; if (location.hash !== `#${view}`) history.replaceState(null,'',`#${view}`);
@@ -114,23 +116,29 @@
     return `<div class="native-tool-entry"><button class="button secondary small" data-action="native-tool-launch" data-tool-id="${id}" ${tool?.can_launch?'':'disabled'} title="${escape(tool?.reason||'完整窗口使用原工具设置；不自动关闭已有应用。')}">${title} ↗</button>${!tool?.can_launch?`<span class="caption">${escape(tool?.reason||state.nativeToolsError||'完整窗口尚未就绪，请刷新状态。')}</span>`:id==='files'?'<span class="caption">完整窗口使用原工具的目录设置，可在窗口内选择目录。</span>':''}</div>`;
   }
   function fileLocation() { return `${state.rootId}:${state.path}`; }
+  function fileLocked() { return state.fileBusy||!!state.fileNavigating; }
   function fileHistorySnapshot() { return {rootId:state.rootId,path:state.path,selection:[...state.fileSelection],focus:state.fileFocus}; }
   function rememberFileLocation() {
     if(state.fileHistoryIndex>=0)state.fileHistory[state.fileHistoryIndex]=fileHistorySnapshot();
   }
   async function loadFileFolder(path,rootId=state.rootId,historyIndex=null) {
-    if(state.fileBusy||!rootId)return;
+    if(fileLocked()||!rootId)return;
     if(historyIndex===null&&rootId===state.rootId&&path===state.path&&!state.fileQuery){focusFileList();return;}
-    const token=++state.fileSearchToken,generation=state.renderId;
-    const data=await api(`/api/suite/files?root_id=${encodeURIComponent(rootId)}&path=${encodeURIComponent(path)}`);
-    if(state.view!=='files'||generation!==state.renderId||token!==state.fileSearchToken)return;
-    rememberFileLocation();state.rootId=rootId;state.path=data.path??path;store.set('suite.root',rootId);
-    state.fileQuery='';state.fileSearchMode='folder';state.fileLocation=fileLocation();
-    const previous=historyIndex===null?null:state.fileHistory[historyIndex];
-    state.fileSelection=new Set(previous?.selection||[]);state.fileFocus=previous?.focus??-1;state.fileAnchor=state.fileFocus;
-    if(historyIndex===null){state.fileHistory=state.fileHistory.slice(0,state.fileHistoryIndex+1);state.fileHistory.push(fileHistorySnapshot());state.fileHistoryIndex=state.fileHistory.length-1;}
-    else state.fileHistoryIndex=historyIndex;
-    await renderFiles(++state.renderId,data);focusFileList();
+    const token=++state.fileSearchToken,generation=state.renderId,navigationToken=++state.fileNavigationToken;
+    state.fileNavigating={token:navigationToken};++state.filePreviewToken;updateFileSelection();
+    try {
+      const data=await api(`/api/suite/files?root_id=${encodeURIComponent(rootId)}&path=${encodeURIComponent(path)}`);
+      if(state.view!=='files'||generation!==state.renderId||token!==state.fileSearchToken||state.fileNavigating?.token!==navigationToken)return;
+      rememberFileLocation();state.rootId=rootId;state.path=data.path??path;store.set('suite.root',rootId);
+      state.fileQuery='';state.fileSearchMode='folder';state.fileLocation=fileLocation();
+      const previous=historyIndex===null?null:state.fileHistory[historyIndex];
+      state.fileSelection=new Set(previous?.selection||[]);state.fileFocus=previous?.focus??-1;state.fileAnchor=state.fileFocus;
+      if(historyIndex===null){state.fileHistory=state.fileHistory.slice(0,state.fileHistoryIndex+1);state.fileHistory.push(fileHistorySnapshot());state.fileHistoryIndex=state.fileHistory.length-1;}
+      else state.fileHistoryIndex=historyIndex;
+      await renderFiles(++state.renderId,data);focusFileList();
+    } finally {
+      if(state.fileNavigating?.token===navigationToken){state.fileNavigating=null;if(state.view==='files'){if($('#file-root'))$('#file-root').value=state.rootId;if($('#file-path'))$('#file-path').value=state.path;updateFileSelection();}}
+    }
   }
   async function fileNavigate(direction) {
     if(direction==='up')return loadFileFolder(state.path.split('/').filter(Boolean).slice(0,-1).join('/'));
@@ -158,7 +166,7 @@
     $('#file-search').addEventListener('keydown',event=>{if(event.key==='Enter'&&!event.isComposing&&!fileComposing&&event.keyCode!==229&&Date.now()-fileCompositionEnd>100){event.preventDefault();busy(null,()=>searchFiles(true));}});
     $('#file-path').addEventListener('keydown',event=>{if(event.key==='Enter'&&!event.isComposing&&!fileComposing&&event.keyCode!==229&&Date.now()-fileCompositionEnd>100){event.preventDefault();busy(null,()=>loadFileFolder(event.target.value.trim().replace(/\\/g,'/')));}});
     $('#file-select-all').addEventListener('change',event=>selectAllFiles(event.target.checked));
-    updateFileSelection();if(state.fileSelection.size)await previewFileSelection();
+    updateFileSelection();if(state.fileSelection.size)busy(null,previewFileSelection);
   }
   function fileSearchStatus(data={}) {
     const scope=state.fileSearchMode==='tree'?'子目录名称与文档内容':'当前目录名称';
@@ -166,7 +174,7 @@
   }
   function fileRows() { return state.files.map((file,index)=>`<tr class="file-row${state.fileSelection.has(file.path)?' selected':''}${state.fileClipboard?.mode==='cut'&&state.fileClipboard.rootId===state.rootId&&state.fileClipboard.items.some(item=>item.path===file.path)?' cut':''}" data-action="file-select" data-index="${index}" tabindex="${index===state.fileFocus?0:-1}" aria-selected="${state.fileSelection.has(file.path)}" aria-label="${escape(file.name)}"><td><input type="checkbox" data-file-checkbox="${index}" aria-label="选择 ${escape(file.name)}" ${state.fileSelection.has(file.path)?'checked':''} tabindex="-1"></td><td><span class="row-button"><span class="file-symbol">${file.is_dir?'▰':'▤'}</span><span>${escape(file.name)}${state.fileSearchMode==='tree'?`<small>${escape(file.path)}${file.match?` · ${escape(({name:'名称匹配',content:'内容匹配'})[file.match]||file.match)}`:''}</small>`:''}</span></span></td><td>${file.is_dir?'—':size(file.size)}</td><td>${escape(date(file.modified))}</td><td><button class="link-button" data-action="file-manage" data-index="${index}" aria-label="管理 ${escape(file.name)}">···</button></td></tr>`).join(''); }
   async function searchFiles(deep=true) {
-    if(!state.rootId||state.fileBusy)return;
+    if(!state.rootId||fileLocked())return;
     const query=$('#file-search')?.value||'',rootId=state.rootId,path=state.path,generation=state.renderId,token=++state.fileSearchToken;
     state.fileQuery=query;state.fileSearchMode=deep&&query.trim()?'tree':'folder';
     const status=$('#file-search-status');if(status)status.textContent=deep&&query.trim()?'正在搜索子目录名称与文档内容…':'正在筛选…';
@@ -177,21 +185,28 @@
   }
   function selectedFiles() { return state.files.filter(file=>state.fileSelection.has(file.path)); }
   function updateFileSelection() {
-    const files=selectedFiles();state.selected=files[0]||null;
+    const files=selectedFiles(),locked=fileLocked();state.selected=files[0]||null;
     document.querySelectorAll('.file-row').forEach(row=>{const index=Number(row.dataset.index),selected=state.fileSelection.has(state.files[index]?.path);row.classList.toggle('selected',selected);row.setAttribute('aria-selected',String(selected));row.tabIndex=index===state.fileFocus?0:-1;const checkbox=$('input',row);if(checkbox)checkbox.checked=selected;});
-    const checkbox=$('#file-select-all');if(checkbox){checkbox.checked=!!state.files.length&&files.length===state.files.length;checkbox.indeterminate=files.length>0&&files.length<state.files.length;}
-    const status=$('#file-selection-status');if(status)status.textContent=`${files.length?`已选 ${files.length} 项`:`${state.files.length} 项`}${state.fileClipboard?` · ${state.fileClipboard.mode==='cut'?'待移动':'已复制'} ${state.fileClipboard.items.length} 项`:''}${state.fileBusy?' · 操作中…':''}`;
+    const checkbox=$('#file-select-all');if(checkbox){checkbox.checked=!!state.files.length&&files.length===state.files.length;checkbox.indeterminate=files.length>0&&files.length<state.files.length;checkbox.disabled=locked;}
+    for(const input of document.querySelectorAll('#file-root,#file-search,#file-path,[data-file-checkbox]'))input.disabled=locked;
+    $('#file-workbench')?.setAttribute('aria-busy',String(locked));
+    const status=$('#file-selection-status');if(status)status.textContent=`${files.length?`已选 ${files.length} 项`:`${state.files.length} 项`}${state.fileClipboard?` · ${state.fileClipboard.mode==='cut'?'待移动':'已复制'} ${state.fileClipboard.items.length} 项`:''}${state.fileNavigating?' · 正在切换目录…':state.fileBusy?' · 操作中…':''}`;
     for(const button of document.querySelectorAll('#file-workbench [data-action]')){
       const action=button.dataset.action;
-      if(['file-copy','file-cut','file-trash'].includes(action))button.disabled=state.fileBusy||!files.length;
-      else if(action==='file-rename')button.disabled=state.fileBusy||files.length!==1;
-      else if(action==='file-paste')button.disabled=state.fileBusy||!state.fileClipboard?.items.length||!state.rootId;
+      if(['file-copy','file-cut','file-trash','file-copy-to','file-move','file-import'].includes(action))button.disabled=locked||!files.length;
+      else if(action==='file-rename'||action==='file-open')button.disabled=locked||files.length!==1;
+      else if(action==='file-paste')button.disabled=locked||!state.fileClipboard?.items.length||!state.rootId;
+      else if(action==='file-back')button.disabled=locked||state.fileHistoryIndex<=0;
+      else if(action==='file-forward')button.disabled=locked||state.fileHistoryIndex>=state.fileHistory.length-1;
+      else if(action==='file-up')button.disabled=locked||!state.path;
+      else if(['file-root','file-folder','file-go','file-mkdir','file-search','file-select','file-manage'].includes(action))button.disabled=locked||!state.rootId;
+      else if(action==='file-restore')button.disabled=locked||!state.trashReceipts.length;
     }
   }
   function focusFileList() { const row=document.querySelector(`.file-row[data-index="${state.fileFocus}"]`);(row||$('#file-table'))?.focus({preventScroll:true});row?.scrollIntoView({block:'nearest'}); }
-  function selectAllFiles(selected=true) { state.fileSelection=new Set(selected?state.files.map(file=>file.path):[]);if(selected&&state.fileFocus<0)state.fileFocus=0;state.fileAnchor=state.fileFocus;updateFileSelection();busy(null,previewFileSelection); }
+  function selectAllFiles(selected=true) { if(fileLocked())return;state.fileSelection=new Set(selected?state.files.map(file=>file.path):[]);if(selected&&state.fileFocus<0)state.fileFocus=0;state.fileAnchor=state.fileFocus;updateFileSelection();busy(null,previewFileSelection); }
   async function selectFile(index,options={}) {
-    if(state.fileBusy)return;const file=state.files[index];if(!file)return;
+    if(fileLocked())return;const file=state.files[index];if(!file)return;
     const previous=state.fileFocus;state.fileFocus=index;
     if(options.range){const anchor=state.fileAnchor>=0?state.fileAnchor:(previous>=0?previous:index);if(!options.toggle)state.fileSelection.clear();for(let i=Math.min(anchor,index);i<=Math.max(anchor,index);i++)state.fileSelection.add(state.files[i].path);}
     else if(options.toggle){if(state.fileSelection.has(file.path))state.fileSelection.delete(file.path);else state.fileSelection.add(file.path);state.fileAnchor=index;}
@@ -218,9 +233,16 @@
     } catch(error) {if(token===state.filePreviewToken&&generation===state.renderId){preview.innerHTML=`<h3>${escape(file.name)}</h3>${empty('预览暂不可用',friendly(error))}<button class="button secondary small" data-action="file-open">原应用打开</button>${fileActions()}`;updateFileSelection();}}
   }
   async function openSelectedFile() {
+    if(fileLocked())return;
     const files=selectedFiles();if(files.length!==1){toast('请选择一个文件或文件夹打开。',true);return;}
-    const file=files[0];if(file.is_dir)return loadFileFolder(file.path);
-    const result=await post('/api/suite/files/open',{root_id:state.rootId,path:file.path});toast(result.detail||'已交给原应用打开。');
+    return openFileTarget(files[0],state.rootId);
+  }
+  async function openFileTarget(file,rootId) {
+    if(fileLocked()||!file||state.view!=='files')return;
+    if(file.is_dir)return loadFileFolder(file.path,rootId);
+    state.fileBusy=true;updateFileSelection();
+    try{const result=await post('/api/suite/files/open',{root_id:rootId,path:file.path});toast(result.detail||'已交给原应用打开。');}
+    finally{state.fileBusy=false;if(state.view==='files')updateFileSelection();}
   }
   async function renderMemory(generation) {
     const [status,recent,settings]=await Promise.all([api('/api/suite/memory/status'),api('/api/suite/memory/recent?limit=20'),api('/api/suite/memory/settings')]);if(!current(generation))return;
@@ -321,7 +343,7 @@
   const newFileRequest = () => crypto.randomUUID?crypto.randomUUID():`file-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   function minimalFileSelection(files) { return files.filter(file=>!files.some(parent=>parent!==file&&parent.is_dir&&file.path.toLowerCase().startsWith(parent.path.toLowerCase()+'/'))); }
   async function fileOperation(action) {
-    if(state.fileBusy)return;state.fileBusy=true;updateFileSelection();
+    if(fileLocked())return;state.fileBusy=true;updateFileSelection();
     try { return await performFileOperation(action); }
     finally {state.fileBusy=false;if(state.view==='files')updateFileSelection();}
   }
@@ -442,12 +464,17 @@
   document.addEventListener('compositionstart',()=>{fileComposing=true;});
   document.addEventListener('compositionend',()=>{fileComposing=false;fileCompositionEnd=Date.now();});
   $('#action-dialog form').addEventListener('submit',event=>{if(fileComposing||Date.now()-fileCompositionEnd<100)event.preventDefault();});
-  document.addEventListener('dblclick',event=>{const row=event.target.closest('.file-row');if(state.view==='files'&&row&&!event.target.closest('button,input')&&!fileComposing&&!state.fileBusy){event.preventDefault();busy(null,async()=>{await selectFile(Number(row.dataset.index));await openSelectedFile();});}});
+  document.addEventListener('dblclick',event=>{const row=event.target.closest('.file-row');if(state.view==='files'&&row&&!event.target.closest('button,input')&&!fileComposing&&!fileLocked()){event.preventDefault();const index=Number(row.dataset.index),file=state.files[index],rootId=state.rootId;busy(null,()=>selectFile(index));busy(null,()=>openFileTarget(file,rootId));}});
   document.addEventListener('keydown',event=>{
-    if(state.view!=='files'||state.fileBusy||fileComposing||event.isComposing||event.keyCode===229||event.defaultPrevented||$('#action-dialog').open)return;
+    if(state.view!=='files'||fileComposing||event.isComposing||event.keyCode===229||event.defaultPrevented||$('#action-dialog').open)return;
     const target=event.target;if(!(target instanceof Element)||target.closest('input,textarea,select,[contenteditable=""],[contenteditable="true"],[role="textbox"]'))return;
     if(!target.closest('#file-workbench,#file-undo')&&target!==document.body)return;
     const key=event.key,ctrl=event.ctrlKey||event.metaKey;let operation=null;
+    if(fileLocked()){
+      const command=ctrl&&!event.altKey&&['c','x','v','a','f','l','z','n'].includes(key.toLowerCase())||event.altKey&&!ctrl&&['ArrowLeft','ArrowRight','ArrowUp'].includes(key)||!ctrl&&!event.altKey&&['ArrowUp','ArrowDown','Home','End','F2','Delete','Backspace','F5','Escape',' ','Enter'].includes(key);
+      if(command&&!(ctrl&&key.toLowerCase()==='c'&&window.getSelection()?.toString()))event.preventDefault();
+      if(state.fileNavigating&&ctrl&&key.toLowerCase()==='v')toast('正在切换目录，请完成后再粘贴。');return;
+    }
     if(event.altKey&&!ctrl){if(key==='ArrowLeft')operation=()=>fileNavigate('back');else if(key==='ArrowRight')operation=()=>fileNavigate('forward');else if(key==='ArrowUp')operation=()=>fileNavigate('up');}
     else if(ctrl&&!event.altKey){
       if(key.toLowerCase()==='c'&&!window.getSelection()?.toString())operation=()=>fileOperation('file-copy');

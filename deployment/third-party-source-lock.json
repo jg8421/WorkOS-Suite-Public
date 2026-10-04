@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "suite_version": "1.0.2",
+  "suite_version": "1.0.3",
   "scrcpy_commit": "2926c06c5dc3064ae6d8db706f1a98a37cfcf3f0",
-  "corresponding_source_asset": "https://github.com/jg8421/WorkOS-Suite-Public/releases/download/v1.0.2/WorkOS-Suite-1.0.2-corresponding-sources.zip",
+  "corresponding_source_asset": "https://github.com/jg8421/WorkOS-Suite-Public/releases/download/v1.0.3/WorkOS-Suite-1.0.3-corresponding-sources.zip",
   "sources": [
     {
       "name": "scrcpy",
