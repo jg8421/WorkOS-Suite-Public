@@ -165,11 +165,17 @@ class NativeTools:
         except (OSError,ValueError,subprocess.TimeoutExpired):return None
 
     def _refresh(self):
-        self._selected={};failures={key:[] for key in TOOLS};deadline=time.monotonic()+15
+        self._selected={};failures={key:[] for key in TOOLS};deadline=time.monotonic()+20
         if WINDOWS:
-            for executable,source in self._candidates():
-                if len(self._selected)==len(TOOLS) or time.monotonic()>=deadline:break
-                probe=self._probe(executable,min(5,max(.1,deadline-time.monotonic())))
+            for index,(executable,source) in enumerate(self._candidates()):
+                if len(self._selected)==len(TOOLS):break
+                remaining=deadline-time.monotonic()
+                if remaining<=0:break
+                # Freshly extracted GUI libraries may incur a first-use scan.
+                # Only the first bundled candidate gets the longer cold-start
+                # allowance; host runtimes retain their shorter bound.
+                allowance=12 if index==0 and source=='packaged' else 5
+                probe=self._probe(executable,min(allowance,remaining))
                 if probe is None:continue
                 modules=probe['modules']
                 for key,spec in TOOLS.items():
@@ -196,7 +202,9 @@ class NativeTools:
     def describe(self):
         with self._lock:
             if self._closed:raise NativeToolUnavailable('套件正在关闭')
-            if time.monotonic()-self._checked>=self.cache_seconds:self._refresh()
+            all_ready=bool(self._statuses) and all(item['can_launch'] for item in self._statuses)
+            cache_seconds=self.cache_seconds if all_ready else min(3,self.cache_seconds)
+            if time.monotonic()-self._checked>=cache_seconds:self._refresh()
             return {'tools':[dict(item,features=list(item['features'])) for item in self._statuses]}
 
     def launch(self,component,body):

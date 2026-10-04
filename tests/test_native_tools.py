@@ -74,6 +74,89 @@ class NativeToolsTests(unittest.TestCase):
         self.assertTrue(all(not item['can_launch'] for item in report['tools']))
         self.assertNotIn('private trace',json.dumps(report))
 
+    def test_packaged_cold_import_over_five_seconds_can_become_ready_and_stay_cached(self):
+        clock=[100.0]
+        def cold_import(command,**options):
+            delay=8.0
+            if options['timeout']<delay:
+                clock[0]+=options['timeout']
+                raise subprocess.TimeoutExpired(command,options['timeout'])
+            clock[0]+=delay
+            return SimpleNamespace(returncode=0,stdout=json.dumps(available()))
+        with patch('suite.native_tools.WINDOWS',True),patch('suite.native_tools.time.monotonic',side_effect=lambda:clock[0]),patch.object(self.tools,'_candidates',return_value=[(self.exe,'packaged')]),patch('suite.native_tools.subprocess.run',side_effect=cold_import) as run,patch('suite.native_tools.subprocess.Popen') as launch:
+            report=self.tools.describe()
+            self.assertTrue(all(item['can_launch'] and item['runtime_source']=='packaged' for item in report['tools']))
+            self.assertEqual(run.call_args.kwargs['timeout'],12)
+            clock[0]+=59
+            self.assertEqual(self.tools.describe(),report)
+            self.assertEqual(run.call_count,1)
+            clock[0]+=1
+            self.tools.describe()
+            self.assertEqual(run.call_count,2)
+            launch.assert_not_called()
+
+    def test_completely_failed_probe_recovers_after_short_cache_without_launching(self):
+        clock=[100.0];attempts=[]
+        def probe(command,**options):
+            attempts.append(options['timeout'])
+            if len(attempts)==1:
+                clock[0]+=options['timeout']
+                raise subprocess.TimeoutExpired(command,options['timeout'])
+            clock[0]+=.25
+            return SimpleNamespace(returncode=0,stdout=json.dumps(available()))
+        with patch('suite.native_tools.WINDOWS',True),patch('suite.native_tools.time.monotonic',side_effect=lambda:clock[0]),patch.object(self.tools,'_candidates',return_value=[(self.exe,'packaged')]),patch('suite.native_tools.subprocess.run',side_effect=probe),patch('suite.native_tools.subprocess.Popen') as launch:
+            failed=self.tools.describe()
+            self.assertTrue(all(not item['can_launch'] for item in failed['tools']))
+            clock[0]+=2.9
+            self.assertEqual(self.tools.describe(),failed)
+            self.assertEqual(len(attempts),1)
+            clock[0]+=.1
+            recovered=self.tools.describe()
+            self.assertTrue(all(item['can_launch'] for item in recovered['tools']))
+            self.assertEqual(attempts,[12,12])
+            clock[0]+=3
+            self.assertEqual(self.tools.describe(),recovered)
+            self.assertEqual(len(attempts),2)
+            launch.assert_not_called()
+
+    def test_cold_probe_and_host_fallbacks_share_one_bounded_budget(self):
+        clock=[100.0];timeouts=[]
+        def timed_out(command,**options):
+            timeouts.append(options['timeout']);clock[0]+=options['timeout']
+            raise subprocess.TimeoutExpired(command,options['timeout'])
+        candidates=[(self.exe,'packaged'),*((self.base/('host'+str(index))/'python.exe','registered') for index in range(5))]
+        with patch('suite.native_tools.WINDOWS',True),patch('suite.native_tools.time.monotonic',side_effect=lambda:clock[0]),patch.object(self.tools,'_candidates',return_value=candidates),patch('suite.native_tools.subprocess.run',side_effect=timed_out),patch('suite.native_tools.subprocess.Popen') as launch:
+            report=self.tools.describe()
+            self.assertTrue(all(not item['can_launch'] for item in report['tools']))
+            self.assertEqual(timeouts,[12,5,3])
+            self.assertEqual(clock[0]-100,20)
+            launch.assert_not_called()
+
+    def test_partial_host_selection_does_not_delay_bundled_files_recovery(self):
+        clock=[100.0];attempts=[]
+        host=self.base/'host'/'python.exe'
+        def probe(command,**options):
+            attempts.append((command[0],options['timeout']))
+            if len(attempts)==1:
+                clock[0]+=options['timeout']
+                raise subprocess.TimeoutExpired(command,options['timeout'])
+            clock[0]+=.25
+            report=available('tksheet','tkinterweb') if command[0]==str(host) else available()
+            return SimpleNamespace(returncode=0,stdout=json.dumps(report))
+        with patch('suite.native_tools.WINDOWS',True),patch('suite.native_tools.time.monotonic',side_effect=lambda:clock[0]),patch.object(self.tools,'_candidates',return_value=[(self.exe,'packaged'),(host,'registered')]),patch('suite.native_tools.subprocess.run',side_effect=probe),patch('suite.native_tools.subprocess.Popen') as launch:
+            partial={item['id']:item for item in self.tools.describe()['tools']}
+            self.assertFalse(partial['files']['can_launch'])
+            self.assertTrue(partial['processes']['can_launch'])
+            self.assertEqual(partial['processes']['runtime_source'],'registered')
+            clock[0]+=2.9
+            self.assertFalse(next(item for item in self.tools.describe()['tools'] if item['id']=='files')['can_launch'])
+            self.assertEqual(len(attempts),2)
+            clock[0]+=.1
+            recovered=self.tools.describe()
+            self.assertTrue(all(item['can_launch'] and item['runtime_source']=='packaged' for item in recovered['tools']))
+            self.assertEqual(attempts,[(str(self.exe),12),(str(host),5),(str(self.exe),12)])
+            launch.assert_not_called()
+
     def test_dependency_library_stdout_cannot_corrupt_readiness_json(self):
         (self.base/'tk8.6').mkdir();(self.base/'tk8.6'/'tk.tcl').write_text('fixture')
         tkinter=SimpleNamespace(TkVersion=8.6,Tcl=lambda:SimpleNamespace(eval=lambda query:str(self.base/'tcl8.6')))
