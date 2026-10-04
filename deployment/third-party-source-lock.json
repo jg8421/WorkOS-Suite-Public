@@ -1,0 +1,149 @@
+{
+  "schema_version": 1,
+  "suite_version": "1.0.1",
+  "scrcpy_commit": "2926c06c5dc3064ae6d8db706f1a98a37cfcf3f0",
+  "corresponding_source_asset": "https://github.com/jg8421/WorkOS-Suite-Public/releases/download/v1.0.1/WorkOS-Suite-1.0.1-corresponding-sources.zip",
+  "sources": [
+    {
+      "name": "scrcpy",
+      "version": "4.1",
+      "filename": "scrcpy-4.1-2926c06c5dc3-source.tar.gz",
+      "url": "https://github.com/Genymobile/scrcpy/archive/2926c06c5dc3064ae6d8db706f1a98a37cfcf3f0.tar.gz",
+      "git_repository": "Genymobile/scrcpy",
+      "git_commit": "2926c06c5dc3064ae6d8db706f1a98a37cfcf3f0",
+      "digest_source": "https://api.github.com/repos/Genymobile/scrcpy/git/trees/2926c06c5dc3064ae6d8db706f1a98a37cfcf3f0?recursive=1",
+      "license": "Apache-2.0",
+      "binary_mapping": [
+        "scrcpy.exe",
+        "scrcpy-server"
+      ],
+      "sha256": "c4c2ae8d32a1429b355b1438d5b4a842a8882ae1792bd984438d60e98252c51c",
+      "size_bytes": 493094,
+      "verification": {
+        "method": "all_archive_file_git_blob_hashes_match_fixed_commit",
+        "matched_files": 371
+      }
+    },
+    {
+      "name": "ffmpeg",
+      "version": "8.1.2",
+      "url": "https://ffmpeg.org/releases/ffmpeg-8.1.2.tar.xz",
+      "filename": "ffmpeg-8.1.2.tar.xz",
+      "upstream_expected_sha256": "464beb5e7bf0c311e68b45ae2f04e9cc2af88851abb4082231742a74d97b524c",
+      "digest_source": "https://raw.githubusercontent.com/Genymobile/scrcpy/2926c06c5dc3064ae6d8db706f1a98a37cfcf3f0/app/deps/ffmpeg.sh",
+      "license": "LGPL-2.1-or-later (used build; optional GPL source remains under original licenses)",
+      "binary_mapping": [
+        "avcodec-62.dll",
+        "avformat-62.dll",
+        "avutil-60.dll",
+        "swresample-6.dll"
+      ],
+      "sha256": "464beb5e7bf0c311e68b45ae2f04e9cc2af88851abb4082231742a74d97b524c",
+      "size_bytes": 11710924,
+      "verification": {
+        "method": "sha256_matches_fixed_official_scrcpy_build_script"
+      }
+    },
+    {
+      "name": "libusb",
+      "version": "1.0.30",
+      "url": "https://github.com/libusb/libusb/archive/refs/tags/v1.0.30.tar.gz",
+      "filename": "libusb-1.0.30.tar.gz",
+      "upstream_expected_sha256": "2ae28adb0bb9558c86135c4e1c11b320b0805461e207a64a6e520a114094bf07",
+      "digest_source": "https://raw.githubusercontent.com/Genymobile/scrcpy/2926c06c5dc3064ae6d8db706f1a98a37cfcf3f0/app/deps/libusb.sh",
+      "license": "LGPL-2.1-or-later",
+      "binary_mapping": [
+        "libusb-1.0.dll"
+      ],
+      "sha256": "2ae28adb0bb9558c86135c4e1c11b320b0805461e207a64a6e520a114094bf07",
+      "size_bytes": 436332,
+      "verification": {
+        "method": "sha256_matches_fixed_official_scrcpy_build_script"
+      }
+    },
+    {
+      "name": "sdl",
+      "version": "3.4.12",
+      "url": "https://github.com/libsdl-org/SDL/archive/refs/tags/release-3.4.12.tar.gz",
+      "filename": "sdl-3.4.12.tar.gz",
+      "upstream_expected_sha256": "b68381f06a7580e63400b3b6eb547ec57d8c3ebde70f9f40e0aba530ba05da27",
+      "digest_source": "https://raw.githubusercontent.com/Genymobile/scrcpy/2926c06c5dc3064ae6d8db706f1a98a37cfcf3f0/app/deps/sdl.sh",
+      "license": "Zlib",
+      "binary_mapping": [
+        "SDL3.dll"
+      ],
+      "sha256": "b68381f06a7580e63400b3b6eb547ec57d8c3ebde70f9f40e0aba530ba05da27",
+      "size_bytes": 15846095,
+      "verification": {
+        "method": "sha256_matches_fixed_official_scrcpy_build_script"
+      }
+    },
+    {
+      "name": "dav1d",
+      "version": "1.5.3",
+      "url": "https://code.videolan.org/videolan/dav1d/-/archive/1.5.3/dav1d-1.5.3.tar.gz",
+      "filename": "dav1d-1.5.3.tar.gz",
+      "upstream_expected_sha256": "cbe212b02faf8c6eed5b6d55ef8a6e363aaab83f15112e960701a9c3df813686",
+      "digest_source": "https://raw.githubusercontent.com/Genymobile/scrcpy/2926c06c5dc3064ae6d8db706f1a98a37cfcf3f0/app/deps/dav1d.sh",
+      "license": "BSD-2-Clause",
+      "binary_mapping": [
+        "statically included in avcodec-62.dll"
+      ],
+      "sha256": "cbe212b02faf8c6eed5b6d55ef8a6e363aaab83f15112e960701a9c3df813686",
+      "size_bytes": 1713950,
+      "verification": {
+        "method": "sha256_matches_fixed_official_scrcpy_build_script"
+      }
+    },
+    {
+      "name": "zlib",
+      "version": "1.3.1",
+      "filename": "zlib-1.3.1-51b7f2abdade-source.tar.gz",
+      "url": "https://github.com/madler/zlib/archive/51b7f2abdade71cd9bb0e7a373ef2610ec6f9daf.tar.gz",
+      "git_repository": "madler/zlib",
+      "git_commit": "51b7f2abdade71cd9bb0e7a373ef2610ec6f9daf",
+      "digest_source": "https://api.github.com/repos/madler/zlib/git/trees/51b7f2abdade71cd9bb0e7a373ef2610ec6f9daf?recursive=1",
+      "license": "Zlib",
+      "binary_mapping": [
+        "inflate 1.3.1 marker in FFmpeg avcodec/avformat DLLs"
+      ],
+      "sha256": "d9e270d46252734aa49770fbc544125391617956266f220bd63216c834f3a522",
+      "size_bytes": 1572004,
+      "verification": {
+        "method": "all_archive_file_git_blob_hashes_match_fixed_commit",
+        "matched_files": 257
+      }
+    },
+    {
+      "name": "pystray",
+      "version": "0.19.5",
+      "filename": "pystray-0.19.5-1907f8681d6d-source.tar.gz",
+      "url": "https://github.com/moses-palmer/pystray/archive/1907f8681d6d421517c63d94f425f9cdd74d0034.tar.gz",
+      "git_repository": "moses-palmer/pystray",
+      "git_commit": "1907f8681d6d421517c63d94f425f9cdd74d0034",
+      "digest_source": "https://api.github.com/repos/moses-palmer/pystray/git/trees/1907f8681d6d421517c63d94f425f9cdd74d0034?recursive=1",
+      "license": "LGPL-3.0-or-later",
+      "binary_mapping": [
+        "runtime/python/Lib/site-packages/pystray/*.py"
+      ],
+      "sha256": "2df980e432f349815c8b1e88f910c085c161a17ce7294f73a0e8d7651c5d9bac",
+      "size_bytes": 48172,
+      "verification": {
+        "method": "all_archive_file_git_blob_hashes_match_fixed_commit",
+        "matched_files": 29
+      }
+    }
+  ],
+  "additional_notice_sources": [
+    {
+      "name": "android-platform-tools",
+      "version": "37.0.0",
+      "url": "https://dl.google.com/android/repository/platform-tools_r37.0.0-win.zip",
+      "sha256": "4fe305812db074cea32903a489d061eb4454cbc90a49e8fea677f4b7af764918",
+      "digest_source": "https://raw.githubusercontent.com/Genymobile/scrcpy/2926c06c5dc3064ae6d8db706f1a98a37cfcf3f0/app/deps/adb_windows.sh",
+      "included_material": "complete original NOTICE.txt; original binary ZIP remains a download cache, not a source archive"
+    }
+  ],
+  "build_recipe": "scrcpy fixed-commit release/build_windows.sh 64; dependency calls use win64 cross shared; dav1d is explicitly static inside FFmpeg.",
+  "toolchain_note": "Upstream scripts identify MinGW cross toolchain. Compiler/package build environment is not independently reproduced by this audit; original official binaries are unchanged."
+}

@@ -1,0 +1,25 @@
+{
+  "name": "personal-memory",
+  "version": "0.1.0",
+  "description": "Search and maintain the user's local personal memory.",
+  "author": {
+    "name": "Personal local"
+  },
+  "keywords": ["memory", "context", "personal", "local", "mcp"],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Personal Memory",
+    "shortDescription": "Private cross-device memory for Codex and DSH.",
+    "longDescription": "Searches and maintains a local-first memory store synchronized from Android and selected Windows sources.",
+    "developerName": "Personal local",
+    "category": "Productivity",
+    "capabilities": ["Search", "Write"],
+    "defaultPrompt": [
+      "Search my memory for context about this task.",
+      "What decisions and unfinished tasks should I remember?",
+      "Save this as a durable preference."
+    ],
+    "brandColor": "#4F46E5"
+  }
+}

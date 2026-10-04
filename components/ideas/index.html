@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>想法收集器</title>
+<meta name="theme-color" content="#2563eb">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="app">
+
+  <header class="topbar">
+    <div class="brand"><span class="logo">💡</span><span class="brand-name">想法收集器</span></div>
+    <div class="topbar-actions">
+      <button id="btn-refresh" class="icon-btn" title="重新读取">🔄</button>
+      <button id="btn-folder" class="icon-btn" title="选择/切换文件夹">📁</button>
+    </div>
+  </header>
+
+  <!-- 欢迎 / 选文件夹 -->
+  <div id="welcome" class="view">
+    <div class="welcome-card">
+      <div class="welcome-emoji">💡</div>
+      <h1>想法收集器</h1>
+      <p id="welcome-desc">选择已用 Syncthing 同步到手机的「想法收集器」文件夹，直接读取和编辑里面的 <b>ideas.json</b>，数据仍然由 Syncthing 负责同步。</p>
+      <button id="btn-pick" class="primary big">📁 选择同步文件夹</button>
+      <p class="hint">需要 Chrome / Edge 132+。若点了没反应，先升级浏览器再试；页面底部会显示你的浏览器版本。</p>
+      <p class="hint" id="diag"></p>
+    </div>
+  </div>
+
+  <!-- 列表 -->
+  <div id="home" class="view hidden">
+    <div class="searchbar">
+      <input id="search" type="search" placeholder="搜索想法…" autocomplete="off">
+    </div>
+    <div id="folder-info" class="folder-info"></div>
+    <div id="empty-warn" class="warn hidden">⚠ 此文件夹的 ideas.json 为空或尚未同步。<br>如果这里本来应该有想法，请先检查：是否选对了文件夹、Syncthing 是否已同步完成。<b>先别保存，否则会覆盖为空。</b></div>
+    <div id="list" class="list"></div>
+    <button id="btn-add" class="fab" title="新建想法">＋</button>
+  </div>
+
+  <!-- 编辑 -->
+  <div id="edit" class="view hidden">
+    <header class="editbar">
+      <button id="btn-back" class="icon-btn" title="返回">←</button>
+      <div class="editbar-title">编辑想法</div>
+      <button id="btn-save" class="save-btn">保存</button>
+    </header>
+    <div class="edit-body">
+      <input id="edit-title" class="title-input" placeholder="标题" autocomplete="off">
+      <textarea id="edit-content" class="content-input" rows="8" placeholder="内容…"></textarea>
+      <div class="section-label">图片附件</div>
+      <div id="edit-images" class="edit-images"></div>
+      <div class="edit-actions">
+        <button id="btn-addimg" class="ghost">🖼 添加图片</button>
+        <button id="btn-del" class="danger">🗑 删除这条想法</button>
+      </div>
+      <input type="file" id="file-input" accept="image/*" multiple hidden>
+    </div>
+  </div>
+
+</div>
+<div id="toast"></div>
+<script src="app.js"></script>
+</body>
+</html>

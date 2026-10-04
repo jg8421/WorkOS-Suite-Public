@@ -1,0 +1,28 @@
+{
+  "mcpServers": {
+    "personal_memory": {
+      "command": "powershell.exe",
+      "cwd": "<ABSOLUTE_INSTALL_DIRECTORY>",
+      "args": [
+        "-NoProfile",
+        "-NonInteractive",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "./scripts/launch-mcp.ps1"
+      ],
+      "enabled": true,
+      "startup_timeout_sec": 20,
+      "tool_timeout_sec": 30,
+      "default_tools_approval_mode": "approve",
+      "tools": {
+        "memory_search": { "approval_mode": "never" },
+        "memory_recent": { "approval_mode": "never" },
+        "memory_get": { "approval_mode": "never" },
+        "memory_stats": { "approval_mode": "never" },
+        "memory_remember": { "approval_mode": "never" },
+        "memory_forget": { "approval_mode": "prompt" }
+      }
+    }
+  }
+}

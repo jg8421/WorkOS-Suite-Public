@@ -1,0 +1,211 @@
+[
+  {
+    "name": "Local-WorkOS",
+    "full_name": "jg8421/Local-WorkOS",
+    "description": "Local-first research, evidence, meetings, tasks and financial modelling workspace. Synthetic demo only.",
+    "html_url": "https://github.com/jg8421/Local-WorkOS",
+    "private": false,
+    "fork": false,
+    "archived": false,
+    "default_branch": "main",
+    "language": "Python"
+  },
+  {
+    "name": "jg-file-system",
+    "full_name": "jg8421/jg-file-system",
+    "description": "jg文件系统",
+    "html_url": "https://github.com/jg8421/jg-file-system",
+    "private": false,
+    "fork": false,
+    "archived": false,
+    "default_branch": "main",
+    "language": "Python"
+  },
+  {
+    "name": "phone-mirror-toolkit",
+    "full_name": "jg8421/phone-mirror-toolkit",
+    "description": "Mirror and control an Android phone from Windows over ADB, with QR-code wireless pairing that adb itself cannot do",
+    "html_url": "https://github.com/jg8421/phone-mirror-toolkit",
+    "private": false,
+    "fork": false,
+    "archived": false,
+    "default_branch": "main",
+    "language": "PowerShell"
+  },
+  {
+    "name": "wechat-export-pipeline",
+    "full_name": "jg8421/wechat-export-pipeline",
+    "description": "把本机微信聊天记录整理成可分析语料，再用多子代理并行提炼成按人区分的工作技能手册（MD + PDF）。方法与脚本，不含任何聊天数据。",
+    "html_url": "https://github.com/jg8421/wechat-export-pipeline",
+    "private": false,
+    "fork": false,
+    "archived": false,
+    "default_branch": "main",
+    "language": "Python"
+  },
+  {
+    "name": "SummerProject2020ForTDengine",
+    "full_name": "jg8421/SummerProject2020ForTDengine",
+    "description": null,
+    "html_url": "https://github.com/jg8421/SummerProject2020ForTDengine",
+    "private": false,
+    "fork": false,
+    "archived": false,
+    "default_branch": "master",
+    "language": "Python"
+  },
+  {
+    "name": "qwen-auto-record",
+    "full_name": "jg8421/qwen-auto-record",
+    "description": "Windows 小工具：检测到 Teams / Zoom / 微信 等通话时，自动唤起千问客户端的录音纪要开始录音（托盘常驻 + 本地控制面板）",
+    "html_url": "https://github.com/jg8421/qwen-auto-record",
+    "private": false,
+    "fork": false,
+    "archived": false,
+    "default_branch": "main",
+    "language": "Python"
+  },
+  {
+    "name": "Platform_For_Synthetic_Biology",
+    "full_name": "jg8421/Platform_For_Synthetic_Biology",
+    "description": "-",
+    "html_url": "https://github.com/jg8421/Platform_For_Synthetic_Biology",
+    "private": false,
+    "fork": false,
+    "archived": false,
+    "default_branch": "main",
+    "language": "Python"
+  },
+  {
+    "name": "operations_research",
+    "full_name": "jg8421/operations_research",
+    "description": "lingo and mathematics",
+    "html_url": "https://github.com/jg8421/operations_research",
+    "private": false,
+    "fork": false,
+    "archived": false,
+    "default_branch": "main",
+    "language": null
+  },
+  {
+    "name": "meeting-recorder-guard-android",
+    "full_name": "jg8421/meeting-recorder-guard-android",
+    "description": "Android 通话与会议自动录屏守护工具（Xiaomi/HyperOS beta）",
+    "html_url": "https://github.com/jg8421/meeting-recorder-guard-android",
+    "private": false,
+    "fork": false,
+    "archived": false,
+    "default_branch": "main",
+    "language": "Java"
+  },
+  {
+    "name": "jg-codex-ui",
+    "full_name": "jg8421/jg-codex-ui",
+    "description": "DeepSeek-ready local Codex CLI web UI with paste uploads and persistent task workspace.",
+    "html_url": "https://github.com/jg8421/jg-codex-ui",
+    "private": false,
+    "fork": false,
+    "archived": false,
+    "default_branch": "main",
+    "language": "JavaScript"
+  },
+  {
+    "name": "jg-editable-html",
+    "full_name": "jg8421/jg-editable-html",
+    "description": "把任何单文件 HTML，变成「像 Word 一样能改、能批注、Ctrl+S 就地保存」的活文档 | Turn any single-file HTML into an editable, annotatable, in-place-saving document",
+    "html_url": "https://github.com/jg8421/jg-editable-html",
+    "private": false,
+    "fork": false,
+    "archived": false,
+    "default_branch": "main",
+    "language": "JavaScript"
+  },
+  {
+    "name": "idea-collector-web",
+    "full_name": "jg8421/idea-collector-web",
+    "description": null,
+    "html_url": "https://github.com/jg8421/idea-collector-web",
+    "private": false,
+    "fork": false,
+    "archived": false,
+    "default_branch": "main",
+    "language": "JavaScript"
+  },
+  {
+    "name": "jg8421",
+    "full_name": "jg8421/jg8421",
+    "description": null,
+    "html_url": "https://github.com/jg8421/jg8421",
+    "private": false,
+    "fork": false,
+    "archived": false,
+    "default_branch": "master",
+    "language": "Python"
+  },
+  {
+    "name": "Fast-Process-Manager",
+    "full_name": "jg8421/Fast-Process-Manager",
+    "description": "A lightweight Windows process manager with resource monitoring and process controls.",
+    "html_url": "https://github.com/jg8421/Fast-Process-Manager",
+    "private": false,
+    "fork": false,
+    "archived": false,
+    "default_branch": "main",
+    "language": "Python"
+  },
+  {
+    "name": "Dexplot.Tutorial",
+    "full_name": "jg8421/Dexplot.Tutorial",
+    "description": "The tutorial for Dexplot------a useful data visualization tool  better than seaborn and matplotlib",
+    "html_url": "https://github.com/jg8421/Dexplot.Tutorial",
+    "private": false,
+    "fork": false,
+    "archived": false,
+    "default_branch": "master",
+    "language": "Jupyter Notebook"
+  },
+  {
+    "name": "jg-blog",
+    "full_name": "jg8421/jg-blog",
+    "description": null,
+    "html_url": "https://github.com/jg8421/jg-blog",
+    "private": false,
+    "fork": false,
+    "archived": false,
+    "default_branch": "master",
+    "language": "HTML"
+  },
+  {
+    "name": "difftaichi",
+    "full_name": "jg8421/difftaichi",
+    "description": "10 differentiable physical simulators built with Taichi differentiable programming (DiffTaichi, ICLR 2020)",
+    "html_url": "https://github.com/jg8421/difftaichi",
+    "private": false,
+    "fork": true,
+    "archived": false,
+    "default_branch": "master",
+    "language": null
+  },
+  {
+    "name": "vaccini-italia-covid",
+    "full_name": "jg8421/vaccini-italia-covid",
+    "description": "Repository for web app script",
+    "html_url": "https://github.com/jg8421/vaccini-italia-covid",
+    "private": false,
+    "fork": true,
+    "archived": false,
+    "default_branch": "master",
+    "language": null
+  },
+  {
+    "name": "TDengine",
+    "full_name": "jg8421/TDengine",
+    "description": "An open-source big data platform designed and optimized for the Internet of Things (IoT).",
+    "html_url": "https://github.com/jg8421/TDengine",
+    "private": false,
+    "fork": true,
+    "archived": false,
+    "default_branch": "develop",
+    "language": null
+  }
+]

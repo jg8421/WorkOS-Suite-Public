@@ -1,0 +1,135 @@
+# Public edition validation
+
+Validation uses synthetic fixtures and independent temporary databases. No original user memory or actual model API credentials are read.
+
+### 1.9.1 completed-action context across clarification, 2026-10-04
+
+- Action turns retain compact receipts from earlier committed steps when the model asks for missing conditions. The follow-up context carries saved record references so the next turn can recognize completed work and avoid repeating the save; full tool arguments/source bodies are excluded.
+- The action guidance suite passes10/10 checks. Its new actual HTTP regression verifies that a scoped follow-up prompt contains the exact prior record ID/title/action, excludes raw tool body/archive path, and completes without creating a second record. The full local Python release run passes472 checks (469 passed,3 Windows real-symlink permission skips); all41 Node groups pass. The final SOP also reruns Chrome and verifies deployment/push; remote CI is checked separately against the deployed revision.
+
+### 1.9.0 conversational inputs and independent model connections, 2026-10-04
+
+- The full local Python release run passes471 checks (468 passed,3 skipped because this Windows account cannot create real symbolic links). Remote CI is checked independently after deployment and push.
+- Twenty isolated HTTP guidance checks cover missing sources/transcripts, ambiguous financial methods, two-round retained assumptions, default Flash dispatch, unsupported assumptions, general explanations, semantic planning and model-requested follow-ups. Nine action checks cover nested missing inputs, structured final questions, no empty records and preserved receipts/archives from earlier completed steps. A worker regression verifies durable waiting, zero empty deliverables, released cancellation ownership and unchanged waiting state after restart.
+- Sixty-nine fresh-profile Chrome interaction groups pass with synthetic providers. These include two clarification rounds, Enter/IME/Stop, failed-provider drafts, needs-input history restoration, scoped semantic planning, durable continuation, custom-model CRUD/persisted selection, guide rendering and desktop/375px overflow. Node suites pass14 Markdown,13 transport,9 AI-control and5 authentication groups.
+- Two additional actual default-Flash calls use entirely synthetic loose financial text. The first retains net income100 and12x P/E while asking for currency/unit/period without guessing them; a natural-language second turn retains the numbers and completes the explicit inputs, producing deterministic equity value1200. DSH is not called, no deliverable/archive is created, and no production data is read or written.
+- Fourteen pure clarification tests cover natural method aliases and ambiguity, retained conditions/zero values, absent or imprecise units/periods/dates, explicit percent/multiple strings, plain-number percentage ambiguity, missing forecasts/global rates, conditional terminal inputs, nonfinite/huge values, WACC/negative-profit/LBO relationships, unsupported-field mapping and bounded public questions. They also prove authentication, scope, cancellation and malformed provider output are not converted by the financial helper. Financial calculation formulas are unchanged.
+- Ten new isolated actual-HTTP custom-model tests cover same upstream ID on two endpoints across ask/assumptions/meetings/actions/material workflows; actual authorization header isolation; stable update/explicit key clearing; restart definitions with no keys; register/list/catalog/remove; synthetic probes without business reads; multi-step actions; a durable job; endpoint/model URI rejection; password-session/local CSRF and cross-origin protection. A failed custom request does not fall back or save, and raw upstream error content is not returned.
+- The custom-model, clarification and previous unified-selector suites pass together:33 tests. The release SOP runs the full current suite separately and records its total/revision; this focused result is not a claim that the full release, latest Chrome run or remote CI has finished.
+- Release regression fixtures verify online WAL and contextual ledgers, private project/custom definitions, no copied credential/status cache, guidance/catalog contract checks and anonymous public denial. No production account, model key or business path is used.
+
+```shell
+python -m unittest tests.test_clarifications tests.test_custom_models tests.test_model_selection_http tests.test_release -v
+```
+
+### 1.8.0 unified model choice, 2026-10-04
+
+- A reviewed registry round-trips all30 chat choices and displays8 completion-only entries disabled. Tests cover installed GPT Spark, legacy bridge aliases, stale discovery omissions, strict service/model mismatch rejection, exact custom configuration, and durable canonical choice capture without credentials.
+- Real isolated HTTP regressions exercise four service paths across ask, assumptions, meetings, actions and material workflows. Compatible transport parsing, requested identity and credential endpoint scope are checked; GPT/custom nested minutes preserve their choice. Rules bypass AI context, while conflicting service fields reject before mutation.
+- Catalog/bootstrap GET performs no model call. Cancellable synthetic JSON checks read no business records or memory, keep sanitized failure metadata, expire after24hours, reject changed endpoint hashes, and keep missing DSH unavailable even with old success.
+- 57 real Chrome interaction groups pass using fresh profiles and synthetic fixtures. They cover one grouped picker per AI surface, six provider families, independent saved preferences, home staging, disabled work choices, failed-model selection/recheck in settings, Stop with unsaved settings preserved, late verification ignored, and mobile layout. Existing context, cancellation, export and project archiving regressions remain included.
+- 30 real synthetic JSON probes completed:21 verified (14 compatible bridge +7 GPT/DSH);8 old bridge IDs returned HTTP400 twice and GPT Codex Spark failed DSH terminal execution twice. Those9 choices are marked temporarily unavailable and can be rechecked;8 completion-only IDs are excluded from chat probes. No private project material was sent. A valid JSON response verifies this bounded connection/output test, not general output quality or independent bridge upstream identity.
+
+## Local results
+
+### 1.7.0 contextual revisions, progress and output folders, 2026-10-04
+
+- Real isolated HTTP tests cover two-turn question/meeting/model/workflow/job context, workspace/project/purpose/source isolation, current manual revision bases, parent preservation, restart/retry and stale queued context. Held-provider fixtures verify factual progress/ETA and cancellation before/after final commit. Failed attempts remain visible without becoming successful context.
+- Temporary project directories verify unique/ambiguous matching, immutable exports and idempotent retries, readable Word/PPT/Excel, authenticated manifest downloads, local-only root/binding writes, and no model call on export retry. Simulated Windows metadata covers all16 documented Cloud Files tags while rejecting symlinks, junctions and unknown tags; no business directories are written by tests.
+- Chrome uses a fresh synthetic profile/database and mocked providers for stable progress regions, multi-round ask/new chat/scope changes, explicit history recovery, recovered active operations without resend or draft loss, saved edits before new workflow revisions, edited valuation assumptions, meeting instructions/transcript fidelity, archive retry/download/binding and mobile layout.
+- Times are estimates by task type; stage logs and context routing do not certify factual answer quality. Suite totals and the release revision are recorded by each SOP execution.
+- A genuine DeepSeek compatible-bridge canary used only temporary synthetic records: two ask rounds retained a work reference; two workflow rounds retained current manual edits, revenue numbers and actual/forecast distinctions, created revision2 without changing the parent, and generated readable HTML/DOCX/PPTX/Markdown versions. This checks this bounded case, not overall factual accuracy or bridge model identity independently.
+- Windows CI can name the same temporary directory with either an8.3 alias or its canonical long name. Artifact fixtures normalize the expected temporary path before comparing it with the confined canonical archive path; file integrity, content, scope and confinement assertions remain enforced.
+
+### 1.6.1 selected-model ask on lexical misses, 2026-10-04
+
+- Twelve real loopback HTTP regressions use synthetic provider responses: all four provider paths are invoked once on a lexical miss or empty text, keep the selected model, report actual model_called/retrieval_basis, and reject nonexistent source tags. Scope, memory, cross-workspace, model allowlists, CSRF, cancellation and no automatic save remain enforced. Generic requests longer than3000 characters now follow the documented4000-character limit.
+- Eight pure context groups verify fair inclusion of late selected documents, deterministic head/middle/tail sampling, the24000-character total and900-character quote bounds, real quote/chunk/page/ordinal identity, empty text, invalid identities, deduplication and unchanged inputs. Strict local keyword retrieval stays separate from model reading.
+- Chrome adds a no-hit model-response display/payload check: actual model identity, brief explanation and coverage warning, exact selected scope, no saved records and source opening. Browser/provider fixture responses are synthetic; these checks do not certify factual accuracy.
+
+- A live source-only synthetic DeepSeek V4.1 Flash canary exercises a genuine lexical miss through the existing compatible bridge and returns an84-character, two-sentence Chinese answer with a real source tag. No runtime business records or personal sources are used. This validates dispatch and brief output for this case, not general factual quality.
+
+### 1.6.0 Enter-send and stopping AI work, 2026-10-04
+
+- Real HTTP and blocked-provider fixtures cover cancel before arrival/acknowledgement, queued/running durable jobs, late compatible-model output, DSH cancellation, agent partial commits, atomic meeting save, edited-meeting protection, cancel-vs-save ordering, terminal persistence after restart, workspace/CSRF/auth and bounded registries. No production model calls are used.
+- Browser regressions exercise actual Enter/Shift+Enter, IME/key229 and key repeat, all research modes and homepage staging, retained drafts, new request identity, stop across navigation, pending task registration, queued/running jobs, failed stop and retry, late ask/action/meeting/valuation responses, normal editor newlines and mobile overflow.
+- Eight isolated Node groups execute the real AI run/composer helpers and check old-result/finally ownership, per-run aborts, request IDs, retryable stop failures, unrelated work, context guards and keyboard behavior. Stopping cannot revoke an already accepted provider request; no late work is saved.
+
+### 1.5.3 session recovery, 2026-10-04
+
+- Real HTTP fixtures verify that stale CSRF rejection happens before writes, job creation or provider calls; Host/Origin, login and other permission failures cannot carry the recovery code.
+- The isolated browser reproduces the valuation parser failure, refreshes its token once, sends an identical request once, and keeps the natural-language/JSON drafts and pending DOM. An ordinary permission failure is shown without refresh or retry.
+- Transport tests cover concurrent refresh sharing, the retry limit, exact request preservation, invalid bootstrap data, workspace changes and aborts. Refreshing a token does not call full boot or reload the page. An already-open older client requires one page refresh to load this fix.
+- A Windows CI run exposed an existing DSH fixture's three-second cold-start deadline. Lifecycle/protocol fixtures now allow startup time and assert the specific completion/parse failure rather than accepting any timeout; the dedicated timeout fixture keeps its short deadline. The lifecycle fixture retains a never-ending handle and checks that runtime disposal actually finishes. Production deadlines are unchanged.
+
+### 1.5.2 homepage project creation, 2026-10-04
+
+- 29 isolated Chrome/CDP groups pass, including creation from the homepage button/dropdown, cancel preserving the prior project/request, empty-name rejection, minimal creation automatically selected, retained workflow purpose, unchanged existing materials and research selections, plus desktop/375px layout.
+
+### 1.5.0 harness revision, 2026-10-04
+
+- 1.5.1 adds controlled shutdown/restart regressions with a blocked model: an old late response cannot save or overwrite a fresh process's retry/completed checkpoint. Extra submit fields cannot persist credentials.
+- Synthetic quality fixtures cover all13 recipes, unambiguous constraints, table parsing, source labels, completion cutoffs and false full-read/DD/model-recalculation claims. Clean review does not set facts_verified. Integration verifies independent critic JSON, blocking repair/re-review, one-repair limit, visible warnings and stale checks after editing.
+- Durable-job tests cover concurrent duplicate requests, workspace isolation, immutable evidence, memory conversion, project-context edits, bounded queue, restart interruption/retry, saved-generation checkpoint recovery, provider identity changes before/between calls and credential rotation without durable secret storage.
+- Updated isolated Chrome groups cover quick acceptance, unlocked composer/navigation, actual stage snapshots, reload, disconnect/backoff, failed/interrupted retry, stable expanded quality cards, findings, stale edits and desktop/mobile overflow. Browser model responses are synthetic; no production records are modified.
+- A real source-only synthetic GPT-6 Luna canary traversed installed DSH: source directory → actual source read → exact final draft check → completed turn/final/exit0. The trace recorded126/126 source characters. Disposable launcher lifecycle tests also reject failed disposal; budgets, trace spans, unselected sources and cancelled runs fail closed.
+- A live synthetic thorough job traversed the existing compatible bridge, returned acceptance immediately, repaired a draft once, and saved only after a second review plus deterministic checks: exactly three data rows, one table and one follow-up question, actual/forecast labels and a valid source tag. The canary exposed a Chinese row/header constraint parsing gap, which was fixed and rerun; the final assert checks actual counts, not merely completed status.
+- These are bounded acceptance and transport checks, not a broad factual-quality benchmark. Each deployment still runs the SOP suite and verifies the installed/source/remote revisions; remote CI is checked after push.
+
+### 1.4.0 revision, 2026-10-04
+
+- Complete Python unit/HTTP suite runs on isolated temporary data; covers automatic grouping/old-record migration, immutable originals and delayed mirror recovery, explicit-source recipes and model failures, request retry/concurrency/workspace cache boundaries, memory boundaries, typed-model reopen/recompute/saved XLSX, annual LBO economics and online SQLite WAL backups. Three Windows real-symlink tests are skipped; simulated reparse checks still run.
+- 27 physical Chrome/CDP interaction groups passed using a new profile, synthetic records and mocked generation: home/project merge, single composer/drafts/scope, all material versions/subtasks/folder intake, recipe staging and saved drafts, source-less email, provider failure/retry IDs, meeting transcript protection, model restore/one-click scenario comparison, paste safety, citations and mobile overflow. Desktop/mobile screenshots were inspected; screenshot fixtures were not production records.
+- 14 Markdown groups and five login recovery groups passed. Raw HTML and unsafe links remain inert.
+- Three synthetic LBO workbooks were recalculated with the already configured native LibreOfficeKit, including direct edits to initial_cash/seller_rollover/exit_multiple/minimum_cash/cash_sweep_pct. All eight Summary metrics and each of four years' debt/cash/shortfall figures matched fresh Python results (relative tolerance 1e-8, absolute 1e-6); all 88 native formulas retained, no cached formula errors.
+- A live synthetic research recipe traversed the existing compatible bridge, produced and saved a readable three-row financial table with actual/forecast distinction, a follow-up question and valid source citation. A first run exposed excess template sections; prompt precedence was corrected and rerun. No private materials were sent; this is a bounded smoke test, not a general quality benchmark or independent verification of the bridge's model identity.
+- The release SOP separately verifies the installed version/commit, configured mirror, public account configuration, login page and anonymous API denial. Production passwords/cookies are not extracted. Remote Actions status is checked separately after push.
+
+### Historical baseline
+
+- 110 unit, storage, HTTP, parsing, retrieval, valuation, sync, DSH-boundary, memory-upload and export tests: 107 passed, 3 skipped because this Windows test account cannot create real symbolic links. Link/reparse rejection is also covered with simulated metadata tests.
+- The 1.0.0 baseline passed eight Playwright workflow groups. For 1.3.0, headless Chrome rendered the research and valuation routes, confirmed the paste-import control, the four valuation methods, and that no per-request consent checkbox remains; Playwright is not installed here, so the full browser workflow suite was not rerun.
+- 1.1.0 model smoke: a synthetic evidence question traversed Local WorkOS → DSH → GPT-6 Luna and returned one grounded citation. DSH tools, session-log, title and telemetry plugins were disabled; session persistence was redirected to a disposable temp directory. No personal materials were used.
+- Nine pages at 390px: no root horizontal overflow; hidden sidebar did not receive keyboard focus. No browser console/page errors (1.0.0 baseline).
+- Independently implemented report editor: default reading, selected-quote annotation, stable paragraph IDs, edited plain text, real HTML downloads, two fresh-context reopens and annotation deletion passed. Title/body/note/edit XSS probes remained inert; no external requests or page errors.
+- Real two-page PDF extraction and DOCX parsing security limits are exercised by unit fixtures. Optional Word export is tested when python-docx is available.
+
+## GitHub checks
+
+The repository workflow runs the synthetic unit suite on Windows and Ubuntu with Python 3.11 and 3.12. Its actual status is visible under the repository Actions tab; local success is not represented as remote-CI success.
+
+## Not claimed
+
+A synthetic canary was sent through the integrated DSH → GPT-6 Luna route and returned the expected text; the unit suite uses a mocked model adapter and never sends fixtures to a live model. No broad answer-quality benchmark is claimed. No OCR, email/chat integrations, recordings, cloud sync, complete LBO or enterprise deployment tests are claimed. Evidence attribution does not validate the underlying source's truth.
+## Research-first UI regression (no Playwright dependency)
+
+```shell
+node tests/test_markdown.cjs
+node tests/test_api_client.cjs
+node tests/test_ai_controls.cjs
+node tests/browser_auth_client.cjs
+node tests/browser_research_cdp.cjs
+```
+
+The Chrome/CDP test starts its own temporary Python instance and Chrome profile, seeds synthetic records, intercepts ask/agent responses, never calls real models, and stops only its created process trees. Use Node24 built-in fetch/WebSocket, Python in PATH or WORKOS_TEST_PYTHON, and Chrome installed or WORKOS_TEST_CHROME. It verifies merged home/project navigation, one composer/drafts/scope, readable Markdown/inert unsafe HTML, citation navigation, editable paste and narrow-screen overflow. Never substitute production 18866 or an existing private Chrome profile.
+
+## Investor-return regression (1.10.0)
+
+Synthetic tests cover investor/company value separation, pre/post-money ownership, IPO and multiple dilution, dividends and follow-on dated flows, losses, ambiguous XIRR signs, mixed currencies, loose units/dates and conflicting holding periods. Real Windows Excel integration checks XIRR formulas/caches, changed exit drivers and complete cashflow schedules against independent economics; CI skips the host-dependent integration. HTTP checks real Excel-adapter dispatch, one question group, source opt-out/scope, changed-source refusal, saved versions and cancellation. Chrome adds return dialogue/auto-result/source scope and PE-to-return routing. The full release SOP retains all existing workflow, auth, export and UI regressions.
+
+## Scoped research, project experience and portable deployment (1.11.0)
+
+- Synthetic unit/HTTP checks cover actual middle-source reads, tool/read budgets, unsupported actions, malformed protocol, unread/foreign references, literal evidence finding, repair based only on read evidence, cancellation and no late save. Experience checks include explicit persistent preferences, quoted source instructions, single-use corrections, source changes, confirmation, conflict, scope, backup, restart and privacy.
+- Committed manual create/update/delete/upload/task actions enter an idempotent project audit after the Store transaction. Tests retain 205 events despite the old activity feed's 200-row limit, preserve project ownership on deletion, recover orphan audit history and prevent source/model text from becoming automatic facts.
+- Startup and polling use bounded read waits, without retrying uncertain mutations. Node tests exercise ignored aborts, stale responses, explicit reconnect, project/workspace changes, cancellation, draft preservation and per-record save/export/download retries. The Chrome suite adds purpose guidance, scoped project experience and held-bootstrap recovery to the full existing regression.
+- Windows DSH cancellation terminates only the still-active owned process tree. A real locked `events.jsonl` regression verifies that delayed temporary-file cleanup cannot replace the cancellation result or retain the model-run lock. Native browser-test process identity/exit checks handle delayed Windows exit notifications without ignoring active processes or browser errors.
+- Four portable-return tests passed on the configured Windows Excel host. The openpyxl author produced editable cash-flow/XIRR formulas; native Excel recalculation and changes to exit assumptions matched independent economics. CI skips native Office checks on hosts without Excel.
+- Pinned core/full preview bundles were actually launched with their delivered embedded Python and scripts on isolated ports/data, without global Python/Node/DSH. Full DOCX/PPTX/formula-XLSX exports and blank personal data were verified. Optional-dependency HTTP tests return friendly setup guidance without losing saved records; unrelated import failures remain server errors. Official runtime/dependency hashes and final manifests are checked. Final release packages require clean HEAD and a fresh delivered-bundle smoke.
+- One real default WorkBuddy DeepSeek V4.1 Flash canary used only a synthetic project/source and temporary data. Three model calls completed source listing, actual source reading, draft checking and a required critic; the result retained an explicit reusable preference. The critic reported `needs_review`, correctly preserving review limitations. No production project was written or sent. A previously unresponsive local bridge was recovered using its existing configured supervisor; this single canary is not a quality benchmark or proof of upstream model identity.
+
+Run `node tests/test_file_operations.cjs` and `node tests/test_startup_reads.cjs` alongside the other Node checks. The release SOP runs the entire Python and Chrome suites, then separately verifies installed source revision, configured public access and remote main. Consult the release output and GitHub Actions for their actual statuses; focused checks alone are not full-release success.
+### 1.11.0 release verification
+
+Windows full backend run: 568 tests, OK with 3 symlink-permission skips; 47 Node checks and 5 authentication checks passed. All 79 isolated Chrome application assertions passed, including two-round financial clarification, cancellation, single-flight exports, scoped experience controls, bounded startup reconnect and mobile overflow.
+
+The host delayed Chrome process teardown after the application assertions. The driver now distinguishes native active, terminating and fully exited states: a terminal exit code with the original creation identity permits detaching the test runner, but does not permit deleting the synthetic profile or claiming full exit. Unknown/active/reused identities still fail. A separate owned-Chrome lifecycle check passed both assertions, and independent native probes confirmed complete exit after runner handles were released. Product code and the 79 application assertions were unchanged during this cleanup repair.

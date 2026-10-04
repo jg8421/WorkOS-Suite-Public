@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+power_limit.txt
+hardware_monitor_path.txt
+hardware_sensor_bridge.json
+sensor-snapshot.json

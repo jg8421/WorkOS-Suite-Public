@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#163f3c">
+  <title>WorkOS Suite · 工作台</title>
+  <link rel="icon" type="image/svg+xml" href="./icon.svg">
+  <link rel="stylesheet" href="./suite.css">
+  <script defer src="./suite.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="主导航">
+      <a class="brand" href="#work"><img src="./icon.svg" alt="" width="38" height="38"><span>WorkOS <strong>Suite</strong><small>把工具连成工作流</small></span></a>
+      <div class="nav-label">工作空间</div>
+      <nav id="primary-nav"></nav>
+      <div class="sidebar-note"><span class="status-dot"></span><strong>你的本地工作台</strong><p>资料留在已选目录；采集与模型由你主动开启。</p></div>
+      <button class="sidebar-runtime" data-action="navigate" data-view="runtime">查看工具与运行状态 <span>↗</span></button>
+      <div class="sidebar-footer">PRIVATE WORKSPACE <span id="version">LOCAL</span></div>
+    </aside>
+    <main class="main">
+      <header class="topbar"><div><span id="category-label" class="eyebrow">工作</span><h1 id="page-title">工作台</h1></div><div class="topbar-right"><span class="local-badge"><span class="status-dot"></span> 本地连接</span><button class="icon-button" id="refresh-button" title="刷新当前页面" aria-label="刷新当前页面">↻</button></div></header>
+      <div id="connection-banner" class="banner hidden" role="status"></div>
+      <div id="module-nav" class="module-nav" aria-label="模块导航"></div>
+      <section id="content" class="content" aria-live="polite"><div class="loading-state"><span class="spinner"></span>正在连接工作台…</div></section>
+      <footer class="page-footer">工具各司其职，工作在这里衔接。<span>WORKOS SUITE</span></footer>
+    </main>
+  </div>
+  <div id="toast" class="toast hidden" role="status"></div>
+  <dialog id="action-dialog"><form method="dialog"><div class="dialog-heading"><h2 id="dialog-title"></h2><button value="cancel" class="icon-button" aria-label="关闭">×</button></div><div id="dialog-body"></div><div class="dialog-actions"><button value="cancel" class="button secondary">取消</button><button id="dialog-confirm" value="confirm" class="button">确定</button></div></form></dialog>
+</body>
+</html>

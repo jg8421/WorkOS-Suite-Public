@@ -1,0 +1,215 @@
+{
+  "schema_version": 1,
+  "platform": "windows-x64",
+  "python_abi": "cp313",
+  "entries": [
+    {
+      "name": "python",
+      "version": "3.13.12",
+      "filename": "python-3.13.12-embed-amd64.zip",
+      "url": "https://www.python.org/ftp/python/3.13.12/python-3.13.12-embed-amd64.zip",
+      "sha256": "76f238f606250c87c6beac75dccd35ee99070a13490555936abb6cb64ecce3d0",
+      "digest_source": "https://www.python.org/ftp/python/3.13.12/python-3.13.12-embed-amd64.zip.sigstore"
+    },
+    {
+      "name": "python-docx",
+      "version": "1.2.0",
+      "filename": "python_docx-1.2.0-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/d0/00/1e03a4989fa5795da308cd774f05b704ace555a70f9bf9d3be057b680bcf/python_docx-1.2.0-py3-none-any.whl",
+      "sha256": "3fd478f3250fbbbfd3b94fe1e985955737c145627498896a8a6bf81f4baf66c7",
+      "digest_source": "https://pypi.org/pypi/python-docx/1.2.0/json"
+    },
+    {
+      "name": "python-pptx",
+      "version": "1.0.2",
+      "filename": "python_pptx-1.0.2-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/d9/4f/00be2196329ebbff56ce564aa94efb0fbc828d00de250b1980de1a34ab49/python_pptx-1.0.2-py3-none-any.whl",
+      "sha256": "160838e0b8565a8b1f67947675886e9fea18aa5e795db7ae531606d68e785cba",
+      "digest_source": "https://pypi.org/pypi/python-pptx/1.0.2/json"
+    },
+    {
+      "name": "openpyxl",
+      "version": "3.1.5",
+      "filename": "openpyxl-3.1.5-py2.py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/c0/da/977ded879c29cbd04de313843e76868e6e13408a94ed6b987245dc7c8506/openpyxl-3.1.5-py2.py3-none-any.whl",
+      "sha256": "5282c12b107bffeef825f4617dc029afaf41d0ea60823bbb665ef3079dc79de2",
+      "digest_source": "https://pypi.org/pypi/openpyxl/3.1.5/json"
+    },
+    {
+      "name": "lxml",
+      "version": "6.1.3",
+      "filename": "lxml-6.1.3-cp313-cp313-win_amd64.whl",
+      "url": "https://files.pythonhosted.org/packages/c0/28/e46a7702bd95e9043291f7c3539b6184cba66f96cea9936f20939b284eeb/lxml-6.1.3-cp313-cp313-win_amd64.whl",
+      "sha256": "e477aca0bc0d19f3b4ae9e4f2a1cfd687c31bf772d78734910658186b40b2477",
+      "digest_source": "https://pypi.org/pypi/lxml/6.1.3/json"
+    },
+    {
+      "name": "pillow",
+      "version": "12.3.0",
+      "filename": "pillow-12.3.0-cp313-cp313-win_amd64.whl",
+      "url": "https://files.pythonhosted.org/packages/a6/9b/7a58e61d62be561da3a356fe2384d4059a6345fc130e23ef1c36a5b81d24/pillow-12.3.0-cp313-cp313-win_amd64.whl",
+      "sha256": "1cca606cd25738df4ed873d5ad46bbdb3d83b5cbca291f6b4ff13a4df6b0bbe8",
+      "digest_source": "https://pypi.org/pypi/pillow/12.3.0/json"
+    },
+    {
+      "name": "xlsxwriter",
+      "version": "3.2.9",
+      "filename": "xlsxwriter-3.2.9-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/3a/0c/3662f4a66880196a590b202f0db82d919dd2f89e99a27fadef91c4a33d41/xlsxwriter-3.2.9-py3-none-any.whl",
+      "sha256": "9a5db42bc5dff014806c58a20b9eae7322a134abb6fce3c92c181bfb275ec5b3",
+      "digest_source": "https://pypi.org/pypi/xlsxwriter/3.2.9/json"
+    },
+    {
+      "name": "typing_extensions",
+      "version": "4.16.0",
+      "filename": "typing_extensions-4.16.0-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/49/d3/b8441a820a491ddfc024b0b0cf0393375b75ea13866d9c66727e54c2fc80/typing_extensions-4.16.0-py3-none-any.whl",
+      "sha256": "481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8",
+      "digest_source": "https://pypi.org/pypi/typing_extensions/4.16.0/json"
+    },
+    {
+      "name": "et_xmlfile",
+      "version": "2.0.0",
+      "filename": "et_xmlfile-2.0.0-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/c1/8b/5fe2cc11fee489817272089c4203e679c63b570a5aaeb18d852ae3cbba6a/et_xmlfile-2.0.0-py3-none-any.whl",
+      "sha256": "7a91720bc756843502c3b7504c77b8fe44217c85c537d85037f0f536151b2caa",
+      "digest_source": "https://pypi.org/pypi/et_xmlfile/2.0.0/json"
+    },
+    {
+      "name": "cffi",
+      "version": "2.1.1",
+      "filename": "cffi-2.1.1-cp313-cp313-win_amd64.whl",
+      "url": "https://files.pythonhosted.org/packages/60/a6/8b149b2c3f2e11aaa1618ef64500b45f50f22c57a977a4dff1aff1f91042/cffi-2.1.1-cp313-cp313-win_amd64.whl",
+      "sha256": "1aa5645c30469b09530c4ebca77ebf8f17618293c58f8549cb1a543a50236e7d",
+      "digest_source": "https://pypi.org/pypi/cffi/2.1.1/json"
+    },
+    {
+      "name": "colorama",
+      "version": "0.4.6",
+      "filename": "colorama-0.4.6-py2.py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/d1/d6/3965ed04c63042e047cb6a3e6ed1a63a35087b6a609aa3a15ed8ac56c221/colorama-0.4.6-py2.py3-none-any.whl",
+      "sha256": "4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6",
+      "digest_source": "https://pypi.org/pypi/colorama/0.4.6/json"
+    },
+    {
+      "name": "comtypes",
+      "version": "1.4.17",
+      "filename": "comtypes-1.4.17-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/89/9c/d0bc1fb69ad22a04bdc01dd9b5613a2ebc4d02ba1ec24b02127dc93791ba/comtypes-1.4.17-py3-none-any.whl",
+      "sha256": "4e0a221dde2c589b82977bed802efd71cd5eb67a380347b732e02735e597f586",
+      "digest_source": "https://pypi.org/pypi/comtypes/1.4.17/json"
+    },
+    {
+      "name": "cryptography",
+      "version": "50.0.2",
+      "filename": "cryptography-50.0.2-cp311-abi3-win_amd64.whl",
+      "url": "https://files.pythonhosted.org/packages/9a/4f/adfc442765721292fff86d314ce385d3249d22db42295c0dd057727b60f3/cryptography-50.0.2-cp311-abi3-win_amd64.whl",
+      "sha256": "7afa5a6602a9f29af1f3a2965f831bae7c9d5d597b7cbb716d41ab3b7d89879c",
+      "digest_source": "https://pypi.org/pypi/cryptography/50.0.2/json"
+    },
+    {
+      "name": "numpy",
+      "version": "2.5.3",
+      "filename": "numpy-2.5.3-cp313-cp313-win_amd64.whl",
+      "url": "https://files.pythonhosted.org/packages/f3/ec/100f2b1794ede74a9b3d7ec6b9736927f56713414c1dfe19ab6c383494bf/numpy-2.5.3-cp313-cp313-win_amd64.whl",
+      "sha256": "71cad2b2a7451ab79d8f5e71b453485b6775963d5cf794179144a7463fe6e8ec",
+      "digest_source": "https://pypi.org/pypi/numpy/2.5.3/json"
+    },
+    {
+      "name": "protobuf",
+      "version": "7.36.2",
+      "filename": "protobuf-7.36.2-cp310-abi3-win_amd64.whl",
+      "url": "https://files.pythonhosted.org/packages/8a/55/b77bda4e5e5f5971fb51b07663694690e9afdb9402136c16a522bd621cad/protobuf-7.36.2-cp310-abi3-win_amd64.whl",
+      "sha256": "a300819d441e078a5608c0d3c709796bb548136058fda017ae51d425b44fd353",
+      "digest_source": "https://pypi.org/pypi/protobuf/7.36.2/json"
+    },
+    {
+      "name": "psutil",
+      "version": "7.2.2",
+      "filename": "psutil-7.2.2-cp37-abi3-win_amd64.whl",
+      "url": "https://files.pythonhosted.org/packages/b4/90/e2159492b5426be0c1fef7acba807a03511f97c5f86b3caeda6ad92351a7/psutil-7.2.2-cp37-abi3-win_amd64.whl",
+      "sha256": "eb7e81434c8d223ec4a219b5fc1c47d0417b12be7ea866e24fb5ad6e84b3d988",
+      "digest_source": "https://pypi.org/pypi/psutil/7.2.2/json"
+    },
+    {
+      "name": "pycaw",
+      "version": "20260927",
+      "filename": "pycaw-20260927-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/af/79/baf93a0a0b53a886f6a84ac05dd8491068c8a7c54db4ccd247acdcff9d1c/pycaw-20260927-py3-none-any.whl",
+      "sha256": "d5b162a87536956af8dfa0fc53b1c77870a30706445ffd7f92a2ed184f65ddf4",
+      "digest_source": "https://pypi.org/pypi/pycaw/20260927/json"
+    },
+    {
+      "name": "pycparser",
+      "version": "3.0",
+      "filename": "pycparser-3.0-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/0c/c3/44f3fbbfa403ea2a7c779186dc20772604442dde72947e7d01069cbe98e3/pycparser-3.0-py3-none-any.whl",
+      "sha256": "b727414169a36b7d524c1c3e31839a521725078d7b2ff038656844266160a992",
+      "digest_source": "https://pypi.org/pypi/pycparser/3.0/json"
+    },
+    {
+      "name": "pystray",
+      "version": "0.19.5",
+      "filename": "pystray-0.19.5-py2.py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/5c/64/927a4b9024196a4799eba0180e0ca31568426f258a4a5c90f87a97f51d28/pystray-0.19.5-py2.py3-none-any.whl",
+      "sha256": "a0c2229d02cf87207297c22d86ffc57c86c227517b038c0d3c59df79295ac617",
+      "digest_source": "https://pypi.org/pypi/pystray/0.19.5/json"
+    },
+    {
+      "name": "qrcode",
+      "version": "8.2",
+      "filename": "qrcode-8.2-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/dd/b8/d2d6d731733f51684bbf76bf34dab3b70a9148e8f2cef2bb544fccec681a/qrcode-8.2-py3-none-any.whl",
+      "sha256": "16e64e0716c14960108e85d853062c9e8bba5ca8252c0b4d0231b9df4060ff4f",
+      "digest_source": "https://pypi.org/pypi/qrcode/8.2/json"
+    },
+    {
+      "name": "six",
+      "version": "1.17.0",
+      "filename": "six-1.17.0-py2.py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/b7/ce/149a00dd41f10bc29e5921b496af8b574d8413afcd5e30dfa0ed46c2cc5e/six-1.17.0-py2.py3-none-any.whl",
+      "sha256": "4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274",
+      "digest_source": "https://pypi.org/pypi/six/1.17.0/json"
+    },
+    {
+      "name": "soundcard",
+      "version": "0.4.6",
+      "filename": "soundcard-0.4.6-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/4c/be/eb381e700a61b4ce899e14850d7ae78f9600fd2f8b58b4c52b8714e81917/soundcard-0.4.6-py3-none-any.whl",
+      "sha256": "ab44b8c1033ac6ec49c5d618ce096dab9b60c7d7a427c92bef15856e5ebb3e09",
+      "digest_source": "https://pypi.org/pypi/SoundCard/0.4.6/json"
+    },
+    {
+      "name": "websocket-client",
+      "version": "1.9.2",
+      "filename": "websocket_client-1.9.2-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/d5/d2/cc4dc1271e464942db7ee278baae2daa99ee77cb2af744025c04da585a3e/websocket_client-1.9.2-py3-none-any.whl",
+      "sha256": "e1a673830a9c7bfa47b1cd3d5e4178f4c9651d80a4eab02c9c23a1c3ec6250ce",
+      "digest_source": "https://pypi.org/pypi/websocket-client/1.9.2/json"
+    },
+    {
+      "name": "node",
+      "version": "v24.21.0",
+      "filename": "node-v24.21.0-win-x64.zip",
+      "url": "https://nodejs.org/dist/v24.21.0/node-v24.21.0-win-x64.zip",
+      "sha256": "158f7685b44de51f6c0df1d153526cbcd3e1bc739a8dfc607721cef75de9e541",
+      "digest_source": "https://nodejs.org/dist/v24.21.0/SHASUMS256.txt"
+    },
+    {
+      "name": "scrcpy",
+      "version": "4.1",
+      "filename": "scrcpy-win64-v4.1.zip",
+      "url": "https://github.com/Genymobile/scrcpy/releases/download/v4.1/scrcpy-win64-v4.1.zip",
+      "sha256": "5b12172b3264b2889f4583ee64752ce832e29bc8b1089dca81093459697165db",
+      "digest_source": "https://api.github.com/repos/Genymobile/scrcpy/releases/tags/v4.1"
+    },
+    {
+      "name": "platform-tools",
+      "version": "37.0.1",
+      "filename": "platform-tools-latest-windows.zip",
+      "url": "https://dl.google.com/android/repository/platform-tools-latest-windows.zip",
+      "sha256": "45f4d63113e895ebde0c90f194099a4676b6ac653bd28d54314a9e022bbc1a99",
+      "digest_source": "https://developer.android.com/tools/releases/platform-tools"
+    }
+  ]
+}

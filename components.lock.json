@@ -1,0 +1,48 @@
+{
+  "schema": 1,
+  "components": [
+    {
+      "id": "workos",
+      "repository": "jg8421/Local-WorkOS",
+      "source_revision": "11aa1200cebf0adaa5f5d66e66a79e61a407c327",
+      "tracked_files": 212
+    },
+    {
+      "id": "files",
+      "repository": "jg8421/jg-file-system",
+      "source_revision": "4e587975bcde7e13a57f5b82fb4ccc8bb02abc97",
+      "tracked_files": 13
+    },
+    {
+      "id": "processes",
+      "repository": "jg8421/Fast-Process-Manager",
+      "source_revision": "e5670be917c559584d06557ce0c065eebc50bcd4",
+      "tracked_files": 9
+    },
+    {
+      "id": "qwen",
+      "repository": "jg8421/qwen-auto-record",
+      "source_revision": "21c4a9e95f3ee8cce3be977861d93b14448d1059",
+      "tracked_files": 27
+    },
+    {
+      "id": "phone",
+      "repository": "jg8421/phone-mirror-toolkit",
+      "source_revision": "29894fc5dbcf2b78d3afe59fbbb6d88f2f60b725",
+      "tracked_files": 38
+    },
+    {
+      "id": "ideas",
+      "repository": "jg8421/idea-collector-web",
+      "source_revision": "2cb1304af427cad1ef580a9716f472731d1e975e",
+      "tracked_files": 10
+    },
+    {
+      "id": "memory",
+      "repository": "integrated-memory-component",
+      "source_revision": "546fcf70d9593db5d2fafbc757c83441f649ff17",
+      "tracked_files": 74,
+      "public_distribution_authorized": true
+    }
+  ]
+}

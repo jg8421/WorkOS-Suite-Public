@@ -1,0 +1,36 @@
+name: Suite acceptance
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  backend:
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: python -m pip install -r requirements.txt openpyxl python-docx python-pptx
+      - run: python -B -m unittest discover -s tests -p "test_*.py" -v
+      - run: node --check web/suite.js
+      - run: node --check suite/workers/memory_worker.mjs
+  browser:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: python -m pip install -r requirements.txt openpyxl python-docx python-pptx
+      - run: npm install --no-save --ignore-scripts playwright
+      - run: npx playwright install chromium
+      - run: node tests/browser_suite.cjs

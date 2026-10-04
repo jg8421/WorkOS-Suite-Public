@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Personal Memory</string>
+    <string name="accessibility_service_description">记录 App 切换、非敏感页面可见文字和按钮操作；不记录密码框或键盘逐字输入。</string>
+</resources>
