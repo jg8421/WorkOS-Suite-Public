@@ -210,6 +210,79 @@
       "url": "https://dl.google.com/android/repository/platform-tools-latest-windows.zip",
       "sha256": "45f4d63113e895ebde0c90f194099a4676b6ac653bd28d54314a9e022bbc1a99",
       "digest_source": "https://developer.android.com/tools/releases/platform-tools"
+    },
+    {
+      "name": "python-tcltk",
+      "version": "3.13.12",
+      "filename": "tcltk-3.13.12-amd64.msi",
+      "url": "https://www.python.org/ftp/python/3.13.12/amd64/tcltk.msi",
+      "sha256": "f2ddbb369a6ced92d0af547ec016ea26f2eaa97ce30100c0cecd3cf270b59e22",
+      "digest_source": "https://www.python.org/ftp/python/3.13.12/amd64/tcltk.msi",
+      "kind": "tcltk-msi",
+      "feature": "native_gui",
+      "publisher": "Python Software Foundation",
+      "authenticode_status": "Valid",
+      "integrity_note": "Initial official MSI download was verified by valid PSF Authenticode signature; this measured SHA256 pins the signed bytes. Official MSI has no sigstore sidecar."
+    },
+    {
+      "name": "tksheet",
+      "version": "7.6.0",
+      "filename": "tksheet-7.6.0-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/51/a2/406016281147857d919c95a9efb6926b8ada683d2fc4de8c1fabc9d5aefa/tksheet-7.6.0-py3-none-any.whl",
+      "sha256": "c586d7d04f93bace45f97888b12ea97cbb48dea4f1c3b7931e89491fdf18f9bb",
+      "digest_source": "https://pypi.org/pypi/tksheet/7.6.0/json",
+      "feature": "native_gui",
+      "license": "MIT"
+    },
+    {
+      "name": "tkinterweb",
+      "version": "4.25.4",
+      "filename": "tkinterweb-4.25.4-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/9f/7e/9717c012bc9a2a36c8dd0f1a9b61b45d8b9bf46015fc973369ac933881bb/tkinterweb-4.25.4-py3-none-any.whl",
+      "sha256": "22be8a4d914a93ade160d6155dc2bc54597cb59df8ef00f3936c02a2ae7ad38e",
+      "digest_source": "https://pypi.org/pypi/tkinterweb/4.25.4/json",
+      "feature": "native_gui",
+      "license": "MIT"
+    },
+    {
+      "name": "tkinterweb-tkhtml",
+      "version": "2.2.2",
+      "filename": "tkinterweb_tkhtml-2.2.2-py3-none-win_amd64.whl",
+      "url": "https://files.pythonhosted.org/packages/91/fa/33b719c6b97efd9308f3d1e28dcb7d1d0094614438e7bff2758d8fcd2db9/tkinterweb_tkhtml-2.2.2-py3-none-win_amd64.whl",
+      "sha256": "970569961e40e7e88d4fd5b848b593144c844d2702372320f640fbb964be75dc",
+      "digest_source": "https://pypi.org/pypi/tkinterweb-tkhtml/2.2.2/json",
+      "feature": "native_gui",
+      "license": "MIT wrapper; BSD-style native Tkhtml COPYRIGHT; upstream per-file terms retained"
+    },
+    {
+      "name": "markdown",
+      "version": "3.11",
+      "filename": "markdown-3.11-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/ec/1e/32971905a7ab47f8b66866ed949fa48b104ba1c4a6fa57794c4f2c4b2cb8/markdown-3.11-py3-none-any.whl",
+      "sha256": "cd6c89e7eb308c8b332ed673215a52d208a43f8bacc030b1419376129408719e",
+      "digest_source": "https://pypi.org/pypi/Markdown/3.11/json",
+      "feature": "native_gui",
+      "license": "BSD-3-Clause"
+    },
+    {
+      "name": "pymupdf",
+      "version": "1.28.2",
+      "filename": "pymupdf-1.28.2-cp310-abi3-win_amd64.whl",
+      "url": "https://files.pythonhosted.org/packages/4a/61/d563bbccba262f9dd6d2d35ccb72593648184d886188efb12d9ce8f34dd6/pymupdf-1.28.2-cp310-abi3-win_amd64.whl",
+      "sha256": "ebd244918798502d7b4504c90410d1711a4d7675a32584ca30f1bab419ecbffe",
+      "digest_source": "https://pypi.org/pypi/pymupdf/1.28.2/json",
+      "feature": "native_gui",
+      "license": "Dual Licensed - GNU AFFERO GPL 3.0 or Artifex Commercial License"
+    },
+    {
+      "name": "pywin32",
+      "version": "312",
+      "filename": "pywin32-312-cp313-cp313-win_amd64.whl",
+      "url": "https://files.pythonhosted.org/packages/ba/db/36a78e3403099d31d9746d13fdcde5accc43c1155f375a34d15983a479a7/pywin32-312-cp313-cp313-win_amd64.whl",
+      "sha256": "c53e878d15a1c44788082bfe712a905433473aa38f86375b7cf8b45e3acbaaf9",
+      "digest_source": "https://pypi.org/pypi/pywin32/312/json",
+      "feature": "native_gui",
+      "license": "PSF"
     }
   ]
 }

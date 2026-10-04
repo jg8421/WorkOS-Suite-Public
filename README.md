@@ -4,15 +4,21 @@
 
 ## 使用
 
-从本仓库 **Releases** 下载 `WorkOS-Suite-1.0.1-windows-x64-complete.zip`，完整解压到任意本机文件夹，双击 **Start-Suite.cmd**。不需要先安装 Python、Node 或 npm。入口为 `http://127.0.0.1:18880/`，快捷方式可指向这个启动器。
+从本仓库 **Releases** 下载 `WorkOS-Suite-1.0.2-windows-x64-complete.zip`，完整解压到任意本机文件夹，双击 **Start-Suite.cmd**。不需要先安装 Python、Node 或 npm。入口为 `http://127.0.0.1:18880/`，快捷方式可指向这个启动器。
 
-包里包含 Python、Node、七个组件、文件解析和交付依赖、ADB、scrcpy，以及记忆助手 Android 安装包。官方千问账号、模型账号、Office 和手机授权需要在新机器配置；个人项目、记忆和登录信息不会随安装包复制。使用 **Check-Environment.cmd** 查看哪些条件已经满足。
+包里包含 Python、Node、七个组件、完整文件工作台和进程管理器所需的 Tk / Tcl 与界面依赖、文件解析和交付依赖、ADB、scrcpy，以及记忆助手 Android 安装包。官方千问账号、模型账号、Office 和手机授权需要在新机器配置；个人项目、记忆和登录信息不会随安装包复制。使用 **Check-Environment.cmd** 查看哪些条件已经满足。
 
-手机镜像使用 FFmpeg 的 LGPL 2.1 动态库；[对应源码 ZIP](https://github.com/jg8421/WorkOS-Suite-Public/releases/download/v1.0.1/WorkOS-Suite-1.0.1-corresponding-sources.zip) 与安装包在同一 Release 提供。[完整第三方许可与构建来源](docs/PUBLIC_THIRD_PARTY.md) 随包交付。
+手机镜像使用 FFmpeg 的 LGPL 2.1 动态库；[对应源码 ZIP](https://github.com/jg8421/WorkOS-Suite-Public/releases/download/v1.0.2/WorkOS-Suite-1.0.2-corresponding-sources.zip) 与安装包在同一 Release 提供。[完整第三方许可与构建来源](docs/PUBLIC_THIRD_PARTY.md) 随包交付。
+
+包含 PyMuPDF / MuPDF 1.28.2 的原生文件 GUI 组合依 GNU AGPLv3 分发；原有自有源码的 MIT 告知及第三方各自许可证均保留。AGPL 全文随二进制交付，该版本对应源码与构建说明在同一 Release 的源码资产提供。详见[原生界面依赖与许可](docs/NATIVE_GUI_THIRD_PARTY.md)。
 
 已有本机 WorkOS 在 18866 运行时，套件会接入其原数据；退出套件不会关闭该服务。否则套件启动自己的独立 WorkOS。数据默认在 `%LOCALAPPDATA%\WorkOS-Suite`；原来的 WorkOS 公网地址继续由原服务提供。整个套件的文件与进程能力只允许本机访问。
 
 新安装不会内置任何人的业务或网盘目录。在文件页登记自己的文件夹；若需将生成的交付稿保存到项目目录，在 WorkOS 中明确配置项目根目录。个人数据库、记忆、录音与登录信息单独保存在本机，不进入公开源码或通用安装包。
+
+文件页支持 Ctrl / Shift 多选、Ctrl+C / X / V、F2 重命名、Delete 移入回收区、Ctrl+Z 撤销删除、Alt+方向键导航和递归内容搜索。复制路径与复制文件分别提供；后者使用 Windows 文件剪贴板，可粘贴到资源管理器。「打开完整文件工作台」保留原版目录标签、收藏、图形预览和编辑功能；进程页也可打开完整原版窗口。
+
+千问页会识别本机已运行的原版自动录音监测并沿用其应用、快捷键和归档设置，避免启动重复监测；退出套件不会关闭借用的原监测。首次安装须配置官方千问并主动启用。状态分别显示监听、暂停、录制及错误；发送快捷键成功与客户端实际开始录制分开呈现。
 
 ## 先试一条工作链
 
@@ -36,4 +42,4 @@
 
 ## 源码归属
 
-七个原组件保留原有 README、许可证与版本记录。Python、Node、scrcpy、ADB 和第三方依赖在发行包中附带许可材料及逐文件 SHA256 清单。旧原生界面保留作源码参考，套件通过新的 Web 接口调用实际服务；不沿用旧版按名称结束进程、任意地址服务或硬编码安装路径。
+七个原组件保留原有 README、许可证与版本记录。Python、Node、scrcpy、ADB 和第三方依赖在发行包中附带许可材料及逐文件 SHA256 清单。套件提供 Web 工作流和独立原版窗口入口；原版文件工作台的设置保存在用户 AppData，关闭套件不会结束有未保存编辑的原版窗口。

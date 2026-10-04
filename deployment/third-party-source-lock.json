@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "suite_version": "1.0.1",
+  "suite_version": "1.0.2",
   "scrcpy_commit": "2926c06c5dc3064ae6d8db706f1a98a37cfcf3f0",
-  "corresponding_source_asset": "https://github.com/jg8421/WorkOS-Suite-Public/releases/download/v1.0.1/WorkOS-Suite-1.0.1-corresponding-sources.zip",
+  "corresponding_source_asset": "https://github.com/jg8421/WorkOS-Suite-Public/releases/download/v1.0.2/WorkOS-Suite-1.0.2-corresponding-sources.zip",
   "sources": [
     {
       "name": "scrcpy",
@@ -145,5 +145,205 @@
     }
   ],
   "build_recipe": "scrcpy fixed-commit release/build_windows.sh 64; dependency calls use win64 cross shared; dav1d is explicitly static inside FFmpeg.",
-  "toolchain_note": "Upstream scripts identify MinGW cross toolchain. Compiler/package build environment is not independently reproduced by this audit; original official binaries are unchanged."
+  "toolchain_note": "Upstream scripts identify MinGW cross toolchain. Compiler/package build environment is not independently reproduced by this audit; original official binaries are unchanged.",
+  "native_gui": {
+    "sources": [
+      {
+        "name": "pymupdf",
+        "version": "1.28.2",
+        "filename": "pymupdf-1.28.2-corresponding-build-source.tar.gz",
+        "url": "https://files.pythonhosted.org/packages/a3/fb/b6761fa2d5266f2cdb24c3b91f4023070ab7848381417678e7a289a1d52a/pymupdf-1.28.2.tar.gz",
+        "sha256": "584e0d298e11d4aac0eee4f7634178b7f59488a642224da5171bbaa64135feb6",
+        "size_bytes": 1872050,
+        "digest_source": "https://pypi.org/pypi/pymupdf/1.28.2/json",
+        "verification": "every preserved file matches official sdist; only listed build-irrelevant test media omitted",
+        "upstream_full_sdist": {
+          "filename": "pymupdf-1.28.2.tar.gz",
+          "url": "https://files.pythonhosted.org/packages/a3/fb/b6761fa2d5266f2cdb24c3b91f4023070ab7848381417678e7a289a1d52a/pymupdf-1.28.2.tar.gz",
+          "sha256": "5e0be7908a715aa20333caddd73f1d6f01e4cd0c26e869fa2dd0b7f344da2249",
+          "size_bytes": 87903557
+        },
+        "selection_manifest": "pymupdf-source-selection.json",
+        "binary_mapping": [
+          "pymupdf/*.py",
+          "pymupdf/*.pyd",
+          "pymupdf/_build.py"
+        ],
+        "wheel_build_git_commit": "12786d12b2962a1d77fd13b103162eddf749644c",
+        "wheel_build_swig_version": "4.4.1",
+        "license": "AGPL-3.0; commercial licensing is separate"
+      },
+      {
+        "name": "tksheet",
+        "version": "7.6.0",
+        "filename": "tksheet-7.6.0.tar.gz",
+        "url": "https://files.pythonhosted.org/packages/a1/28/4e83480a2c1d41d25fbae2b613847ead6d9499a2d7eec0000bf17aed2f30/tksheet-7.6.0.tar.gz",
+        "sha256": "42d0618b10184294a85489a474ae747097483dd9a47b4385ba12b1afa8648e1a",
+        "size_bytes": 199108,
+        "digest_source": "https://pypi.org/pypi/tksheet/7.6.0/json",
+        "verification": "matches official PyPI per-version sdist SHA256"
+      },
+      {
+        "name": "tkinterweb",
+        "version": "4.25.4",
+        "filename": "tkinterweb-4.25.4.tar.gz",
+        "url": "https://files.pythonhosted.org/packages/ff/8e/57e7249a3d85459a2cd09f0c7476d9682383b7a3cd84e32e683a5ffad859/tkinterweb-4.25.4.tar.gz",
+        "sha256": "ee1a458d693dff74b6e4cae47b5b64f741c591a72ef8172b104ceb241c98d2d8",
+        "size_bytes": 112965,
+        "digest_source": "https://pypi.org/pypi/tkinterweb/4.25.4/json",
+        "verification": "matches official PyPI per-version sdist SHA256"
+      },
+      {
+        "name": "tkinterweb-tkhtml",
+        "version": "2.2.2",
+        "filename": "tkinterweb_tkhtml-2.2.2.tar.gz",
+        "url": "https://files.pythonhosted.org/packages/68/85/cc7d3f77191324f503b46cd05fc17927dd48516cb845a69d70bbdfdad1d8/tkinterweb_tkhtml-2.2.2.tar.gz",
+        "sha256": "48df89a28f4ab5692173a7146716cd34cb6cecf73f5e79803a4157ca960fa30b",
+        "size_bytes": 2121033,
+        "digest_source": "https://pypi.org/pypi/tkinterweb-tkhtml/2.2.2/json",
+        "verification": "matches official PyPI per-version sdist SHA256"
+      },
+      {
+        "name": "markdown",
+        "version": "3.11",
+        "filename": "markdown-3.11.tar.gz",
+        "url": "https://files.pythonhosted.org/packages/f8/4f/700155c8c20d9e655dd0732b5fc3c7614f291b9148da271d7388e50bf774/markdown-3.11.tar.gz",
+        "sha256": "180224db6aed87ba9ce1f2781ebcd5826253de8ff637112090e24b84502bbf9f",
+        "size_bytes": 485623,
+        "digest_source": "https://pypi.org/pypi/markdown/3.11/json",
+        "verification": "matches official PyPI per-version sdist SHA256"
+      },
+      {
+        "name": "mupdf",
+        "version": "1.28.2",
+        "filename": "mupdf-1.28.2-source.tar.gz",
+        "url": "https://mupdf.com/downloads/archive/mupdf-1.28.2-source.tar.gz",
+        "sha256": "44075a84e329db55b9bef5f342a70fd26d69e48ad1d33cb89d9664581c641156",
+        "size_bytes": 68898646,
+        "verification": "measured SHA256 of exact official version/fixed-commit source URL; no upstream digest sidecar claimed",
+        "license": "AGPL-3.0 and retained per-file third-party terms",
+        "binary_mapping": [
+          "pymupdf/mupdfcpp64.dll",
+          "pymupdf/_mupdf.pyd"
+        ],
+        "correspondence": "official wheel _build.py names this exact MuPDF archive; actual runtime version is 1.28.2",
+        "complete_upstream_archive": true
+      },
+      {
+        "name": "tcl",
+        "version": "8.6.15",
+        "filename": "tcl-8.6.15-python-275286594fd3.tar.gz",
+        "url": "https://github.com/python/cpython-source-deps/archive/275286594fd3e162af29e8c0ba4e365d3d1f7775.tar.gz",
+        "sha256": "2b75b091c495481b83b6e00c5911a4b4ed56dac9bc19e6cab93e098e284d282e",
+        "size_bytes": 11896771,
+        "verification": "measured SHA256 of exact official version/fixed-commit source URL; no upstream digest sidecar claimed",
+        "license": "Tcl/Tk permissive license.terms",
+        "digest_source": "https://github.com/python/cpython/blob/v3.13.12/PCbuild/get_externals.bat",
+        "git_commit": "275286594fd3e162af29e8c0ba4e365d3d1f7775"
+      },
+      {
+        "name": "tk",
+        "version": "8.6.15",
+        "filename": "tk-8.6.15-python-a526badcf885.tar.gz",
+        "url": "https://github.com/python/cpython-source-deps/archive/a526badcf885e4986e13e68695398a0bb64d5ea1.tar.gz",
+        "sha256": "048a39ee5e3d4ff95e1fce245297123748b5b21e1784ad93a7a10ac4023dc5c7",
+        "size_bytes": 4633924,
+        "verification": "measured SHA256 of exact official version/fixed-commit source URL; no upstream digest sidecar claimed",
+        "license": "Tcl/Tk permissive license.terms",
+        "digest_source": "https://github.com/python/cpython/blob/v3.13.12/PCbuild/get_externals.bat",
+        "git_commit": "a526badcf885e4986e13e68695398a0bb64d5ea1"
+      },
+      {
+        "name": "Tkhtml",
+        "version": "3.0",
+        "git_commit": "d6a6df30a73df3952c7f7d8d89084841531b99ca",
+        "url": "https://github.com/Andereoo/TkinterWeb-Tkhtml/archive/d6a6df30a73df3952c7f7d8d89084841531b99ca.tar.gz",
+        "filename": "tkhtml-3.0-d6a6df30a73d-source.tar.gz",
+        "sha256": "ced64eebf79b845f35ece898927636c7b4d2a875fb2124b2fabcfbce15cc16ac",
+        "size_bytes": 1056840,
+        "license": "BSD-style COPYRIGHT; retain all upstream texts including bundled LGPL COPYING",
+        "verification": "fixed official 3.0 source branch commit predates the selected PyPI wheel; binary toolchain not independently reproduced",
+        "source_commit_date": "2026-09-19T10:55:05Z",
+        "wheel_upload_date": "2026-09-26T15:10:40Z"
+      }
+    ],
+    "binary_inputs": [
+      {
+        "name": "python-tcltk",
+        "version": "3.13.12",
+        "filename": "tcltk-3.13.12-amd64.msi",
+        "url": "https://www.python.org/ftp/python/3.13.12/amd64/tcltk.msi",
+        "sha256": "f2ddbb369a6ced92d0af547ec016ea26f2eaa97ce30100c0cecd3cf270b59e22",
+        "digest_source": "https://www.python.org/ftp/python/3.13.12/amd64/tcltk.msi",
+        "kind": "tcltk-msi",
+        "feature": "native_gui",
+        "publisher": "Python Software Foundation",
+        "authenticode_status": "Valid",
+        "integrity_note": "Initial official MSI download was verified by valid PSF Authenticode signature; this measured SHA256 pins the signed bytes. Official MSI has no sigstore sidecar."
+      },
+      {
+        "name": "tksheet",
+        "version": "7.6.0",
+        "filename": "tksheet-7.6.0-py3-none-any.whl",
+        "url": "https://files.pythonhosted.org/packages/51/a2/406016281147857d919c95a9efb6926b8ada683d2fc4de8c1fabc9d5aefa/tksheet-7.6.0-py3-none-any.whl",
+        "sha256": "c586d7d04f93bace45f97888b12ea97cbb48dea4f1c3b7931e89491fdf18f9bb",
+        "digest_source": "https://pypi.org/pypi/tksheet/7.6.0/json",
+        "feature": "native_gui",
+        "license": "MIT"
+      },
+      {
+        "name": "tkinterweb",
+        "version": "4.25.4",
+        "filename": "tkinterweb-4.25.4-py3-none-any.whl",
+        "url": "https://files.pythonhosted.org/packages/9f/7e/9717c012bc9a2a36c8dd0f1a9b61b45d8b9bf46015fc973369ac933881bb/tkinterweb-4.25.4-py3-none-any.whl",
+        "sha256": "22be8a4d914a93ade160d6155dc2bc54597cb59df8ef00f3936c02a2ae7ad38e",
+        "digest_source": "https://pypi.org/pypi/tkinterweb/4.25.4/json",
+        "feature": "native_gui",
+        "license": "MIT"
+      },
+      {
+        "name": "tkinterweb-tkhtml",
+        "version": "2.2.2",
+        "filename": "tkinterweb_tkhtml-2.2.2-py3-none-win_amd64.whl",
+        "url": "https://files.pythonhosted.org/packages/91/fa/33b719c6b97efd9308f3d1e28dcb7d1d0094614438e7bff2758d8fcd2db9/tkinterweb_tkhtml-2.2.2-py3-none-win_amd64.whl",
+        "sha256": "970569961e40e7e88d4fd5b848b593144c844d2702372320f640fbb964be75dc",
+        "digest_source": "https://pypi.org/pypi/tkinterweb-tkhtml/2.2.2/json",
+        "feature": "native_gui",
+        "license": "MIT wrapper; BSD-style native Tkhtml COPYRIGHT; upstream per-file terms retained"
+      },
+      {
+        "name": "markdown",
+        "version": "3.11",
+        "filename": "markdown-3.11-py3-none-any.whl",
+        "url": "https://files.pythonhosted.org/packages/ec/1e/32971905a7ab47f8b66866ed949fa48b104ba1c4a6fa57794c4f2c4b2cb8/markdown-3.11-py3-none-any.whl",
+        "sha256": "cd6c89e7eb308c8b332ed673215a52d208a43f8bacc030b1419376129408719e",
+        "digest_source": "https://pypi.org/pypi/Markdown/3.11/json",
+        "feature": "native_gui",
+        "license": "BSD-3-Clause"
+      },
+      {
+        "name": "pymupdf",
+        "version": "1.28.2",
+        "filename": "pymupdf-1.28.2-cp310-abi3-win_amd64.whl",
+        "url": "https://files.pythonhosted.org/packages/4a/61/d563bbccba262f9dd6d2d35ccb72593648184d886188efb12d9ce8f34dd6/pymupdf-1.28.2-cp310-abi3-win_amd64.whl",
+        "sha256": "ebd244918798502d7b4504c90410d1711a4d7675a32584ca30f1bab419ecbffe",
+        "digest_source": "https://pypi.org/pypi/pymupdf/1.28.2/json",
+        "feature": "native_gui",
+        "license": "Dual Licensed - GNU AFFERO GPL 3.0 or Artifex Commercial License"
+      },
+      {
+        "name": "pywin32",
+        "version": "312",
+        "filename": "pywin32-312-cp313-cp313-win_amd64.whl",
+        "url": "https://files.pythonhosted.org/packages/ba/db/36a78e3403099d31d9746d13fdcde5accc43c1155f375a34d15983a479a7/pywin32-312-cp313-cp313-win_amd64.whl",
+        "sha256": "c53e878d15a1c44788082bfe712a905433473aa38f86375b7cf8b45e3acbaaf9",
+        "digest_source": "https://pypi.org/pypi/pywin32/312/json",
+        "feature": "native_gui",
+        "license": "PSF"
+      }
+    ],
+    "source_selection_manifest": "pymupdf-source-selection.json",
+    "licenses_document": "docs/NATIVE_GUI_THIRD_PARTY.md",
+    "toolchain_note": "Complete preferred source and build scripts are included. Official wheels/DLLs are unchanged; compiler toolchain build was not independently reproduced."
+  }
 }

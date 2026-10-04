@@ -108,6 +108,116 @@ def extract(archive, target, *, wheel=False):
             destination.write_bytes(zipped.read(item))
 
 
+def native_tcltk_runtime_path(name):
+    """Select runtime files only; reject unsafe MSI target paths before selection."""
+    name = name.replace('\\', '/')
+    parts = PurePosixPath(name).parts
+    if (not parts or name.startswith('/') or '..' in parts or ':' in name or
+        any(part.rstrip(' .') != part or WINDOWS_DEVICE.match(part) or re.search(r'[<>"|?*]', part) for part in parts)):
+        raise ValueError('Unsafe Tcl/Tk payload path')
+    selected = name.startswith(('Lib/tkinter/', 'tcl/')) or name in {
+        'DLLs/_tkinter.pyd', 'DLLs/tcl86t.dll', 'DLLs/tk86t.dll', 'DLLs/zlib1.dll'}
+    return selected and not (name.endswith('.lib') or '/demos/' in name or name.startswith('tcl/nmake/'))
+
+
+def extract_tcltk_msi(archive, target, temporary):
+    """Read an official MSI's CAB streams; never execute Windows Installer."""
+    if os.name != 'nt': raise ValueError('Official Tcl/Tk MSI extraction requires a Windows build host')
+    import ctypes
+    from ctypes import wintypes
+    api = ctypes.WinDLL('msi'); handle = wintypes.UINT
+    api.MsiOpenDatabaseW.argtypes = [wintypes.LPCWSTR, ctypes.c_void_p, ctypes.POINTER(handle)]
+    api.MsiDatabaseOpenViewW.argtypes = [handle, wintypes.LPCWSTR, ctypes.POINTER(handle)]
+    api.MsiViewExecute.argtypes = [handle, handle]
+    api.MsiViewFetch.argtypes = [handle, ctypes.POINTER(handle)]
+    api.MsiRecordGetStringW.argtypes = [handle, wintypes.UINT, wintypes.LPWSTR, ctypes.POINTER(wintypes.DWORD)]
+    api.MsiRecordReadStream.argtypes = [handle, wintypes.UINT, ctypes.c_void_p, ctypes.POINTER(wintypes.DWORD)]
+    api.MsiCloseHandle.argtypes = [handle]
+    def string(record, field):
+        length = wintypes.DWORD(32767); text = ctypes.create_unicode_buffer(length.value + 1)
+        if api.MsiRecordGetStringW(record, field, text, ctypes.byref(length)):
+            raise ValueError('Official Tcl/Tk MSI string could not be read')
+        return text.value
+    database = handle()
+    if api.MsiOpenDatabaseW(str(archive), None, ctypes.byref(database)):
+        raise ValueError('Official Tcl/Tk MSI could not be opened read-only')
+    def rows(sql, fields):
+        view = handle()
+        if api.MsiDatabaseOpenViewW(database, sql, ctypes.byref(view)):
+            raise ValueError('Official Tcl/Tk MSI schema is unexpected')
+        try:
+            if api.MsiViewExecute(view, 0): raise ValueError('Official Tcl/Tk MSI query failed')
+            while True:
+                record = handle(); result = api.MsiViewFetch(view, ctypes.byref(record))
+                if result == 259: break
+                if result: raise ValueError('Official Tcl/Tk MSI record could not be read')
+                try: yield [string(record, n) for n in range(1, fields + 1)]
+                finally: api.MsiCloseHandle(record)
+        finally: api.MsiCloseHandle(view)
+    temporary.mkdir(parents=True, exist_ok=False)
+    expanded = temporary/'expanded'; expanded.mkdir()
+    try:
+        files = list(rows('SELECT `File`, `FileName`, `FileSize`, `Component_` FROM `File`', 4))
+        components = dict(rows('SELECT `Component`, `Directory_` FROM `Component`', 2))
+        directories = {row[0]: row[1:] for row in rows('SELECT `Directory`, `Directory_Parent`, `DefaultDir` FROM `Directory`', 3)}
+        if sum(int(row[2]) for row in files) > 50_000_000: raise ValueError('Tcl/Tk expansion exceeds package budget')
+        def directory(identifier, seen=frozenset()):
+            if identifier in ('TARGETDIR', 'InstallDirectory'): return PurePosixPath()
+            if identifier in seen or identifier not in directories: raise ValueError('Unsafe Tcl/Tk directory graph')
+            parent, default = directories[identifier]
+            name = default.split(':')[0].split('|')[-1]
+            return directory(parent, seen | {identifier}) / ('' if name in ('.', 'SourceDir') else name)
+        for cabinet in rows('SELECT `Cabinet` FROM `Media`', 1):
+            if not cabinet[0].startswith('#'): raise ValueError('Tcl/Tk MSI must contain its CAB payload')
+            name = cabinet[0][1:]
+            if not re.fullmatch(r'[A-Za-z0-9_.-]{1,160}', name): raise ValueError('Unsafe Tcl/Tk CAB name')
+            view = handle(); record = handle()
+            if api.MsiDatabaseOpenViewW(database, "SELECT `Data` FROM `_Streams` WHERE `Name`='" + name + "'", ctypes.byref(view)):
+                raise ValueError('Official Tcl/Tk CAB stream is absent')
+            try:
+                if api.MsiViewExecute(view, 0) or api.MsiViewFetch(view, ctypes.byref(record)):
+                    raise ValueError('Official Tcl/Tk CAB stream could not be read')
+                cabinet_path = temporary/(name+'.cab'); total = 0
+                with cabinet_path.open('wb') as output:
+                    while True:
+                        buffer = ctypes.create_string_buffer(1024*1024); length = wintypes.DWORD(len(buffer))
+                        if api.MsiRecordReadStream(record, 1, buffer, ctypes.byref(length)):
+                            raise ValueError('Official Tcl/Tk CAB stream is invalid')
+                        if not length.value: break
+                        total += length.value
+                        if total > 50_000_000: raise ValueError('Tcl/Tk CAB exceeds package budget')
+                        output.write(buffer.raw[:length.value])
+            finally:
+                if record.value: api.MsiCloseHandle(record)
+                api.MsiCloseHandle(view)
+            result = subprocess.run([str(Path(os.environ.get('SystemRoot', r'C:\Windows'))/'System32/expand.exe'), '-F:*', str(cabinet_path), str(expanded)],
+                                    capture_output=True, timeout=60, creationflags=subprocess.CREATE_NO_WINDOW)
+            if result.returncode: raise ValueError('Official Tcl/Tk CAB extraction failed')
+        installed = []
+        for identifier, raw_name, raw_size, component in files:
+            if not re.fullmatch(r'[A-Za-z0-9_.-]{1,240}', identifier): raise ValueError('Unsafe Tcl/Tk file identifier')
+            relative = directory(components[component]) / raw_name.split('|')[-1]
+            if not native_tcltk_runtime_path(relative.as_posix()): continue
+            source = expanded/identifier
+            if source.is_symlink() or source.stat().st_size != int(raw_size): raise ValueError('Tcl/Tk extracted payload size mismatch')
+            destination = target.joinpath(*relative.parts)
+            destination.parent.mkdir(parents=True, exist_ok=True); shutil.copyfile(source, destination)
+            installed.append(relative.as_posix())
+        required = {'DLLs/_tkinter.pyd', 'DLLs/tcl86t.dll', 'DLLs/tk86t.dll', 'DLLs/zlib1.dll', 'Lib/tkinter/__init__.py', 'tcl/tcl8.6/init.tcl', 'tcl/tk8.6/tk.tcl', 'tcl/tk8.6/license.terms'}
+        if not required <= set(installed): raise ValueError('Official Tcl/Tk runtime payload is incomplete')
+    finally:
+        api.MsiCloseHandle(database)
+        shutil.rmtree(temporary)
+
+
+def configure_native_gui_python(python):
+    """Make pywin32 available under isolated Python without site/postinstall hooks."""
+    for name in ('pywintypes313.dll', 'pythoncom313.dll'):
+        source = python/'Lib/site-packages/pywin32_system32'/name
+        if not source.is_file(): raise ValueError('Pinned native GUI COM runtime is incomplete')
+        shutil.copyfile(source, python/name)
+
+
 def validate_npm_lock(lock):
     if lock.get('lockfileVersion') != 3 or not isinstance(lock.get('packages'), dict): raise ValueError('Invalid production npm lock')
     for entry in lock['packages'].values():
@@ -173,6 +283,7 @@ def build(root, output, cache, *, allow_dirty=False):
         for entry in entries:
             archive=fetch(entry,cache)
             if entry['name']=='python': extract(archive,python)
+            elif entry.get('kind')=='tcltk-msi': extract_tcltk_msi(archive,python,folder/'input-tcltk')
             elif entry['name'] in ('node','scrcpy','platform-tools'):
                 temporary_target=folder/('input-'+entry['name']); extract(archive,temporary_target)
                 children=list(temporary_target.iterdir())
@@ -180,7 +291,14 @@ def build(root, output, cache, *, allow_dirty=False):
                 target=folder/'runtime/node' if entry['name']=='node' else folder/'runtime/phone'/entry['name']
                 target.parent.mkdir(parents=True,exist_ok=True); shutil.move(str(children[0]),str(target)); temporary_target.rmdir()
             else: extract(archive,python/'Lib/site-packages',wheel=True)
-        (python/'python313._pth').write_text('python313.zip\n.\nLib/site-packages\n../../app\n../../app/components/workos\n../../app/components/workos/vendor\n',encoding='utf-8')
+        native_gui = any(entry.get('kind')=='tcltk-msi' for entry in entries)
+        python_paths = ['python313.zip', '.']
+        if native_gui:
+            configure_native_gui_python(python)
+            python_paths += ['Lib', 'DLLs']
+        python_paths += ['Lib/site-packages', '../../app', '../../app/components/workos', '../../app/components/workos/vendor']
+        if native_gui: python_paths += ['Lib/site-packages/win32', 'Lib/site-packages/win32/lib', 'Lib/site-packages/Pythonwin']
+        (python/'python313._pth').write_text('\n'.join(python_paths)+'\n',encoding='utf-8')
         install_memory_dependencies(root,folder,cache)
         for name in ('Start-Suite.cmd','Stop-Suite.cmd','Check-Environment.cmd'):
             shutil.copyfile(root/'deployment'/name,folder/name)
@@ -197,7 +315,7 @@ def build(root, output, cache, *, allow_dirty=False):
         if any(digest((root/name).read_bytes())!=sha for name,sha in source_hashes.items()): raise ValueError('Source changed during build; freeze it and rebuild')
         preview=preview or current_dirty
         if preview and not allow_dirty: raise ValueError('Release source changed during build')
-        manifest={'schema_version':1,'app':'workos-suite','version':version,'platform':'windows-x64','profile':'complete',
+        manifest={'schema_version':1,'app':'workos-suite','version':version,'platform':'windows-x64','profile':'complete','native_gui':native_gui,
                   'source_revision':revision,'working_tree_changes':preview,'build_status':'preview' if preview else 'release',
                   'components':component_lock['components'],'dependencies':entries,'npm_lock_sha256':digest((root/'deployment/memory-package-lock.json').read_bytes()),
                   'private_data_included':False,'account_credentials_included':False,'host_site_packages_included':False,'files':[]}

@@ -24,6 +24,12 @@ import tkinter as tk
 from tkinter import font as tkfont
 from xml.etree import ElementTree as ET
 
+# Embedded Python's isolated _pth also applies to direct/login launches. Only
+# our fixed source directory is added for the bundled msg_reader helper.
+_MODULE_DIR = str(Path(__file__).resolve().parent)
+if _MODULE_DIR not in sys.path:
+    sys.path.insert(0, _MODULE_DIR)
+
 import fitz
 from PIL import Image, ImageDraw, ImageTk
 from tksheet import Sheet
@@ -53,8 +59,8 @@ if getattr(sys, "frozen", False):
     BASE_DIR = Path(os.environ.get("APPDATA") or str(Path.home())) / "FileWorkbench"
     BUNDLE_DIR = Path(getattr(sys, "_MEIPASS", Path(sys.executable).resolve().parent)).resolve()
 else:
-    BASE_DIR = Path(__file__).resolve().parent
-    BUNDLE_DIR = BASE_DIR
+    BASE_DIR = Path(os.environ.get("APPDATA") or str(Path.home())) / "FileWorkbench"
+    BUNDLE_DIR = Path(__file__).resolve().parent
 BASE_DIR.mkdir(parents=True, exist_ok=True)
 SETTINGS_PATH = BASE_DIR / "settings.json"
 AUTOSTART_RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"

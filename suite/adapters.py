@@ -21,6 +21,7 @@ import urllib.request
 import psutil
 
 from .runtime import ComponentSpec
+from .qwen import OriginalQwenBridge, QwenError, public_config, read_config, configuration_update
 
 
 class AdapterError(ValueError):
@@ -30,7 +31,7 @@ class AdapterError(ValueError):
 class NativeAdapters:
     MEMORY_FLAGS = ('codex_import', 'dsh_import', 'desktop_capture', 'cloud_inbox')
 
-    def __init__(self, components_dir, data_dir, runtime, node_path=None, python_path=sys.executable):
+    def __init__(self, components_dir, data_dir, runtime, node_path=None, python_path=sys.executable, *, qwen_external=False):
         self.components_dir = Path(components_dir).resolve()
         self.data_dir = Path(data_dir).resolve()
         self.data_dir.mkdir(parents=True, exist_ok=True)
@@ -44,6 +45,7 @@ class NativeAdapters:
         self._adb_registered = False
         self._closed = False
         self._opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        self._qwen_bridge = OriginalQwenBridge(qwen_external)
         self._register_worker('memory', 'memory_worker.mjs', self.node_path, self._memory_dependency())
         self._register_worker('qwen', 'qwen_worker.py', self.python_path, self._qwen_dependency())
 
@@ -67,6 +69,13 @@ class NativeAdapters:
         self._workers[component] = worker
         env = {'SUITE_COMPONENT_ROOT':str(self.components_dir/component), 'SUITE_WORKER_DATA':str(folder),
                'SUITE_WORKER_RECEIPT':str(worker['receipt']), 'SUITE_WORKER_TOKEN':worker['token'], 'SUITE_PARENT_PID':str(os.getpid())}
+        if component == 'qwen':
+            env['SUITE_QWEN_EXTERNAL'] = '1' if self._qwen_bridge.enabled else '0'
+            env['SUITE_QWEN_LOCK_FILE'] = str(Path(os.environ.get('LOCALAPPDATA', self.data_dir)) / 'QwenAutoRecord' / 'suite-listener.lock') if self._qwen_bridge.enabled else str(folder / 'listener.lock')
+            original = self._qwen_bridge.discover()
+            if original:
+                env['SUITE_QWEN_ORIGINAL_CONFIG'] = str(original['config'])
+                env['SUITE_QWEN_ORIGINAL_ROOT'] = str(original['root'])
         argv=(executable,'-B',str(Path(__file__).parent/'workers'/filename)) if filename.endswith('.py') else (executable,str(Path(__file__).parent/'workers'/filename))
         self.runtime.register(ComponentSpec(id=worker['id'], command=argv,
             cwd=folder, environment=env, dependency_reason=reason, label='个人记忆' if component=='memory' else '千问自动录音',
@@ -128,14 +137,45 @@ class NativeAdapters:
         return value
 
     def _status(self, component):
+        if component == 'qwen':
+            original = self._qwen_bridge.discover()
+            if original:
+                return self._qwen_bridge.status(original)
         state=self.runtime.status(self._workers[component]['id'])
         if state['status'] in ('running','borrowed') and self._healthy(component):
             result=self._call(component,'status');result['can_stop']=state['can_stop'];return result
         result={'component':component,'status':state['status'],'running':False,'detail':state['detail'],
                 'dependency_reason':state['dependency_reason'],'can_start':state['can_start'],'can_stop':state['can_stop']}
         if component=='memory':result.update(count=0,settings=self._settings(),local_only=True)
-        else:result.update(recording=False,archive={'enabled':False,'count':len(self._recordings())},control_note='停止自动化不结束千问内的录音，请在千问中手动停止录音')
+        else:result.update(source='suite',borrowed=False,listening=False,paused=False,recording=False,active_calls=[],pending=[],archive={'enabled':False,'count':len(self._recordings())},control_note='停止自动化不结束千问内的录音，请在千问中手动停止录音')
         return result
+
+    def _qwen_enabled(self):
+        return (read_config(self.data_dir / 'qwen' / 'automation.json') or {}).get('enabled') is True
+
+    def _save_qwen_enabled(self, enabled, original=None):
+        folder = self.data_dir / 'qwen'
+        target = folder / 'automation.json'
+        if target.is_symlink():raise AdapterError('千问自动化设置路径无效')
+        temporary = folder / 'automation.json.tmp'
+        if temporary.is_symlink():raise AdapterError('千问自动化设置路径无效')
+        temporary.write_text(json.dumps({'enabled': enabled}), encoding='utf-8')
+        os.replace(temporary, target)
+        if original:
+            target = folder / 'original-config-reference.json'
+            if target.is_symlink():raise AdapterError('原千问设置引用路径无效')
+            temporary = folder / 'original-config-reference.json.tmp'
+            if temporary.is_symlink():raise AdapterError('原千问设置引用路径无效')
+            temporary.write_text(json.dumps({'config': str(original['config']), 'root': str(original['root'])}), encoding='utf-8')
+            os.replace(temporary, target)
+
+    def restore_qwen(self):
+        """Only previously explicit Suite authorization resumes its own watcher."""
+        with self._lock:
+            original=self._qwen_bridge.discover(fresh=True)
+            if original:return self._qwen_bridge.status(original)
+            if not self._qwen_enabled():return self._status('qwen')
+            return self.post('qwen', 'start', {})
 
     def _binary(self, name):
         folder='platform-tools' if name=='adb' else 'scrcpy'
@@ -228,6 +268,15 @@ class NativeAdapters:
                 if action=='devices':return self._devices()
             if component in ('memory','qwen') and action=='status':
                 self._keys(query,());return self._status(component)
+            if component=='qwen' and action in ('config','diagnostics'):
+                self._keys(query,())
+                original=self._qwen_bridge.discover()
+                if original:
+                    result=self._qwen_bridge.status(original)
+                    return {'configuration':public_config(original.get('cfg') or {}, 'original')} if action=='config' else result
+                if self._healthy('qwen'):return self._call('qwen','config' if action=='config' else 'status')
+                cfg=read_config(self.data_dir/'qwen'/'config.json')
+                return {'configuration':public_config(cfg or {},'suite' if cfg else 'defaults')} if action=='config' else self._status('qwen')
             if component=='memory' and action=='settings':
                 self._keys(query,());return {'settings':self._settings()}
             if component=='memory' and action in ('recent','search'):
@@ -241,6 +290,24 @@ class NativeAdapters:
                 return self._call('memory',action,query=safe)
             if component=='qwen' and action=='recordings':
                 self._keys(query,())
+                original=self._qwen_bridge.discover()
+                if original and original.get('snapshot'):
+                    try:
+                        value=self._qwen_bridge._request(original,'recordings')
+                        items=value.get('items',[])
+                        if not isinstance(items,list):raise ValueError()
+                        safe=[]
+                        for item in items[:100]:
+                            if not isinstance(item,dict):continue
+                            name=item.get('folder')
+                            if not isinstance(name,str) or not name or len(name)>160 or '/' in name or '\\' in name:continue
+                            size=item.get('bytes',0)
+                            size=size if isinstance(size,int) and not isinstance(size,bool) and 0<=size<=10**16 else 0
+                            modified=item.get('mtime')
+                            modified=modified if isinstance(modified,str) and re.fullmatch(r'\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}',modified) else None
+                            safe.append({'id':name,'name':name,'files':None,'size_bytes':size,'modified_at':modified})
+                        return {'recordings':safe,'total':len(safe),'source':'original'}
+                    except (OSError,ValueError):raise AdapterError('原千问录音列表暂未就绪') from None
                 items=self._recordings();return {'recordings':items,'total':len(items)}
             raise AdapterError('不支持的组件操作')
 
@@ -251,13 +318,35 @@ class NativeAdapters:
             if component in ('memory','qwen') and action in ('start','stop','trigger'):
                 self._keys(body,())
                 if component=='memory' and action=='trigger':raise AdapterError('不支持的组件操作')
+                if component=='qwen':
+                    original=self._qwen_bridge.discover(fresh=True)
+                    if original:
+                        try:result=self._qwen_bridge.action(original,action)
+                        except (OSError,ValueError):raise AdapterError('原千问操作未完成，请检查原托盘监听和客户端状态') from None
+                        if action in ('start','stop'):self._save_qwen_enabled(action=='start',original)
+                        return result
                 if action=='stop':
                     if component=='qwen' and self._healthy('qwen'):self._call('qwen','stop',method='POST')
-                    self.runtime.stop(self._workers[component]['id']);return self._status(component)
+                    self.runtime.stop(self._workers[component]['id'])
+                    if component=='qwen':self._save_qwen_enabled(False)
+                    return self._status(component)
                 state=self._start(component)
                 if state['status'] not in ('running','stopped'):return state
-                if component=='qwen':return self._call('qwen',action,method='POST',timeout=45)
+                if component=='qwen':
+                    result=self._call('qwen',action,method='POST',timeout=45)
+                    if action=='start' and result.get('listening'):self._save_qwen_enabled(True)
+                    return result
                 return state
+            if component=='qwen' and action=='config':
+                original=self._qwen_bridge.discover(fresh=True)
+                if original:
+                    try:return self._qwen_bridge.action(original,'config',body)
+                    except QwenError as error:raise AdapterError(str(error)) from None
+                    except (OSError,ValueError):raise AdapterError('原千问设置未保存，请检查原托盘状态') from None
+                if not self._healthy('qwen'):
+                    state=self._start('qwen')
+                    if state['status'] not in ('running','stopped'):return state
+                return self._call('qwen','config',method='POST',body=body)
             if component=='memory' and action in ('add','forget','settings'):
                 self._keys(body,('text','title','type','tags') if action=='add' else ('id',) if action=='forget' else self.MEMORY_FLAGS)
                 if action=='add':

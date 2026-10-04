@@ -11,8 +11,9 @@
     {id:'devices',name:'设备与运行',en:'DEVICES & RUNTIME',icon:'▣',views:[['phone','手机互联'],['processes','进程管理'],['runtime','工具目录']]}
   ];
   const titles = {workos:'工作台',ideas:'灵感收件箱',files:'文件管理',memory:'记录与记忆',qwen:'千问录音整理',phone:'手机互联',processes:'进程管理',runtime:'工具与运行状态'};
-  const state = {view:'workos',csrf:'',bootstrap:{components:[],roots:[],repositories:[]},projects:[],ideas:[],rootId:store.get('suite.root'),path:'',selected:null,files:[],processes:[],renderId:0,trashReceipt:null};
-  let toastTimer;
+  const state = {view:'workos',csrf:'',bootstrap:{components:[],roots:[],repositories:[]},projects:[],ideas:[],rootId:store.get('suite.root'),path:'',selected:null,files:[],processes:[],renderId:0,trashReceipt:null,
+    fileSelection:new Set(),fileFocus:-1,fileAnchor:-1,fileLocation:'',fileHistory:[],fileHistoryIndex:-1,fileQuery:'',fileSearchMode:'folder',fileSearchToken:0,filePreviewToken:0,fileClipboard:null,fileBusy:false,trashReceipts:[]};
+  let toastTimer,qwenStatusTimer;
   function toast(message, error = false) {
     const el = $('#toast'); el.textContent = message; el.classList.toggle('error', error); el.classList.remove('hidden');
     clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.add('hidden'), 4300);
@@ -61,6 +62,7 @@
     });
   }
   function navigate(view) {
+    clearTimeout(qwenStatusTimer);
     if (groups.some(group => group.id === view)) view = groups.find(group => group.id === view).views[0][0];
     if (!titles[view]) view = 'workos';
     state.view = view; if (location.hash !== `#${view}`) history.replaceState(null,'',`#${view}`);
@@ -101,31 +103,124 @@
   function roots() { return array(state.bootstrap,'roots'); }
   function rootOptions() { return roots().map(root=>`<option value="${escape(root.id || root.root_id)}" ${(root.id||root.root_id)===state.rootId?'selected':''}>${escape(root.label || root.name || '已选目录')}</option>`).join(''); }
   function pathJoin(base, leaf) { return [base,leaf].filter(Boolean).join('/').replace(/\\/g,'/'); }
-  async function renderFiles(generation) {
-    if (!roots().some(root=>(root.id||root.root_id)===state.rootId)) { state.rootId=roots()[0]?.id||roots()[0]?.root_id||'';state.path=''; }
-    let data={entries:[]}; if(state.rootId) data=await api(`/api/suite/files?root_id=${encodeURIComponent(state.rootId)}&path=${encodeURIComponent(state.path)}`);if(!current(generation))return;
-    state.files=array(data,'entries');state.path=data.path??state.path;state.selected=null;
-    $('#content').innerHTML = `<div class="panel"><div class="panel-header"><div><h2>选定目录，安心整理</h2><p>搜索、预览与操作只发生在你添加的目录中。</p></div><button class="button secondary small" data-action="root-add">＋ 添加目录</button></div><div class="toolbar"><div class="toolbar-left"><select id="file-root" aria-label="文件目录">${roots().length?rootOptions():'<option>请先添加目录</option>'}</select><button class="button secondary small" data-action="file-up" ${state.path?'':'disabled'}>↑ 上一级</button></div><div class="toolbar-right"><input id="file-search" type="search" placeholder="搜索当前目录" aria-label="搜索当前目录"><button class="button secondary small" data-action="file-search">搜索</button><button class="button small" data-action="file-mkdir" ${state.rootId?'':'disabled'}>＋ 新建文件夹</button></div></div><div class="breadcrumb"><button data-action="file-root">根目录</button><span>/</span><span id="file-current-path">${escape(state.path||'')}</span></div><div class="file-layout"><div><div class="table-scroll"><table><thead><tr><th>名称</th><th>大小</th><th>修改时间</th><th></th></tr></thead><tbody id="file-rows">${fileRows()}</tbody></table></div>${!state.files.length?empty(state.rootId?'当前目录为空':'从一个目录开始',state.rootId?'可以新建文件夹，或切换目录。':'添加你准备使用的目录。'):''}</div><div class="preview" id="file-preview">${empty('点选文件，查看内容','支持文本、表格与压缩包预览；点 ··· 管理文件夹。')}</div></div></div>${state.trashReceipt?'<div class="banner info">文件已移至回收区。<button class="link-button" data-action="file-restore">撤销上次删除</button></div>':''}`;
-    $('#file-root').addEventListener('change',event=>{state.rootId=event.target.value;store.set('suite.root',state.rootId);state.path='';render();});
-    $('#file-search').addEventListener('keydown',event=>{if(event.key==='Enter')searchFiles();});
+  async function nativeTools() {
+    if(state.nativeTools&&Date.now()-state.nativeToolsRead<15000)return;
+    try{const data=await api('/api/suite/native-tools');state.nativeTools=array(data,'tools');}
+    catch(error){state.nativeTools=[];state.nativeToolsError=friendly(error);}
+    state.nativeToolsRead=Date.now();
   }
-  function fileRows() { return state.files.map((file,index)=>`<tr class="file-row" data-action="file-select" data-index="${index}" tabindex="0" role="button" aria-label="${escape(file.name)}"><td><span class="row-button"><span class="file-symbol">${file.is_dir?'▰':'▤'}</span>${escape(file.name)}</span></td><td>${file.is_dir?'—':size(file.size)}</td><td>${escape(date(file.modified))}</td><td><button class="link-button" data-action="file-manage" data-index="${index}" aria-label="管理 ${escape(file.name)}">···</button></td></tr>`).join(''); }
-  async function searchFiles() { if(!state.rootId)return;const query=$('#file-search')?.value||'';const data=await api(`/api/suite/files?root_id=${encodeURIComponent(state.rootId)}&path=${encodeURIComponent(state.path)}&q=${encodeURIComponent(query)}`);if(state.view!=='files')return;state.files=array(data,'entries');$('#file-rows').innerHTML=fileRows(); }
-  function fileActions(file) { return `<div class="button-row"><button class="button secondary small" data-action="file-rename">重命名</button><button class="button secondary small" data-action="file-copy">复制</button><button class="button secondary small" data-action="file-move">移动</button>${file.is_dir?'':'<button class="button secondary small" data-action="file-import">送到项目</button>'}<button class="button danger small" data-action="file-trash">移至回收区</button></div>`; }
-  async function selectFile(index, manage = false) {
-    const file=state.files[index];if(!file)return;state.selected=file;
-    if(file.is_dir&&!manage){state.path=file.path;await render();return;}
-    document.querySelectorAll('.file-row').forEach(row=>row.classList.toggle('selected',Number(row.dataset.index)===index));
-    const preview=$('#file-preview');
-    if(file.is_dir){preview.innerHTML=`<div class="panel-header"><h3>${escape(file.name)}</h3><button class="button secondary small" data-action="file-open">打开文件夹</button></div>${empty('管理这个文件夹','整理操作均限于所选根目录。')}${fileActions(file)}`;return;}
+  function nativeToolButton(id) {
+    const tool=state.nativeTools?.find(tool=>tool.id===id),title=id==='files'?'打开完整文件工作台':'打开完整进程管理器';
+    return `<div class="native-tool-entry"><button class="button secondary small" data-action="native-tool-launch" data-tool-id="${id}" ${tool?.can_launch?'':'disabled'} title="${escape(tool?.reason||'完整窗口使用原工具设置；不自动关闭已有应用。')}">${title} ↗</button>${!tool?.can_launch?`<span class="caption">${escape(tool?.reason||state.nativeToolsError||'完整窗口尚未就绪，请刷新状态。')}</span>`:id==='files'?'<span class="caption">完整窗口使用原工具的目录设置，可在窗口内选择目录。</span>':''}</div>`;
+  }
+  function fileLocation() { return `${state.rootId}:${state.path}`; }
+  function fileHistorySnapshot() { return {rootId:state.rootId,path:state.path,selection:[...state.fileSelection],focus:state.fileFocus}; }
+  function rememberFileLocation() {
+    if(state.fileHistoryIndex>=0)state.fileHistory[state.fileHistoryIndex]=fileHistorySnapshot();
+  }
+  async function loadFileFolder(path,rootId=state.rootId,historyIndex=null) {
+    if(state.fileBusy||!rootId)return;
+    if(historyIndex===null&&rootId===state.rootId&&path===state.path&&!state.fileQuery){focusFileList();return;}
+    const token=++state.fileSearchToken,generation=state.renderId;
+    const data=await api(`/api/suite/files?root_id=${encodeURIComponent(rootId)}&path=${encodeURIComponent(path)}`);
+    if(state.view!=='files'||generation!==state.renderId||token!==state.fileSearchToken)return;
+    rememberFileLocation();state.rootId=rootId;state.path=data.path??path;store.set('suite.root',rootId);
+    state.fileQuery='';state.fileSearchMode='folder';state.fileLocation=fileLocation();
+    const previous=historyIndex===null?null:state.fileHistory[historyIndex];
+    state.fileSelection=new Set(previous?.selection||[]);state.fileFocus=previous?.focus??-1;state.fileAnchor=state.fileFocus;
+    if(historyIndex===null){state.fileHistory=state.fileHistory.slice(0,state.fileHistoryIndex+1);state.fileHistory.push(fileHistorySnapshot());state.fileHistoryIndex=state.fileHistory.length-1;}
+    else state.fileHistoryIndex=historyIndex;
+    await renderFiles(++state.renderId,data);focusFileList();
+  }
+  async function fileNavigate(direction) {
+    if(direction==='up')return loadFileFolder(state.path.split('/').filter(Boolean).slice(0,-1).join('/'));
+    const index=state.fileHistoryIndex+(direction==='back'?-1:1),location=state.fileHistory[index];
+    if(location)return loadFileFolder(location.path,location.rootId,index);
+  }
+  async function renderFiles(generation,provided=null) {
+    await nativeTools();if(!current(generation))return;
+    if (!roots().some(root=>(root.id||root.root_id)===state.rootId)) { state.rootId=roots()[0]?.id||roots()[0]?.root_id||'';state.path=''; }
+    let data=provided||{entries:[]};
+    if(state.rootId&&!provided)data=await api(`/api/suite/files${state.fileSearchMode==='tree'&&state.fileQuery?'/search':''}?root_id=${encodeURIComponent(state.rootId)}&path=${encodeURIComponent(state.path)}&q=${encodeURIComponent(state.fileQuery)}`);
+    if(!current(generation))return;
+    if(state.fileLocation!==fileLocation()){
+      state.fileSelection.clear();state.fileFocus=-1;state.fileAnchor=-1;state.fileQuery='';state.fileSearchMode='folder';state.fileLocation=fileLocation();
+      if(!state.fileHistory.length){state.fileHistory.push(fileHistorySnapshot());state.fileHistoryIndex=0;}
+    }
+    state.files=array(data,'entries');state.path=data.path??state.path;
+    state.fileSelection=new Set([...state.fileSelection].filter(path=>state.files.some(file=>file.path===path)));
+    state.fileFocus=Math.min(state.fileFocus,state.files.length-1);
+    const root=roots().find(root=>(root.id||root.root_id)===state.rootId);
+    $('#content').innerHTML = `<div class="panel file-workbench" id="file-workbench"><div class="panel-header"><div><h2>文件工作台</h2><p>单击选择与预览 · 双击 / Enter 打开 · Ctrl / Shift 多选</p></div><div class="button-row">${nativeToolButton('files')}<button class="button secondary small" data-action="file-shortcuts">快捷键</button><button class="button secondary small" data-action="root-add">＋ 添加目录</button></div></div><div class="toolbar"><div class="toolbar-left file-navigation"><button class="button secondary small" data-action="file-back" aria-label="后退" title="Alt + ←" ${state.fileHistoryIndex>0?'':'disabled'}>←</button><button class="button secondary small" data-action="file-forward" aria-label="前进" title="Alt + →" ${state.fileHistoryIndex<state.fileHistory.length-1?'':'disabled'}>→</button><button class="button secondary small" data-action="file-up" title="Alt + ↑" ${state.path?'':'disabled'}>↑ 上一级</button><select id="file-root" aria-label="文件目录">${roots().length?rootOptions():'<option>请先添加目录</option>'}</select></div><div class="toolbar-right file-search-tools"><input id="file-search" type="search" value="${escape(state.fileQuery)}" placeholder="输入筛选 · Enter 搜索子目录与内容" aria-label="搜索文件"><button class="button secondary small" data-action="file-search">深入搜索</button><button class="button small" data-action="file-mkdir" ${state.rootId?'':'disabled'}>＋ 新建文件夹</button></div></div><div class="file-address"><label for="file-path">位置</label><input id="file-path" value="${escape(state.path)}" placeholder="所选根目录内的路径" aria-label="目录相对路径"><button class="button secondary small" data-action="file-go">转到</button></div><div class="breadcrumb"><button data-action="file-root">${escape(root?.label||'根目录')}</button>${state.path.split('/').filter(Boolean).map((part,index,parts)=>`<span>/</span><button data-action="file-folder" data-path="${escape(parts.slice(0,index+1).join('/'))}">${escape(part)}</button>`).join('')}<span id="file-current-path" class="hidden">${escape(state.path)}</span></div><div class="file-selection-bar"><span id="file-selection-status" role="status"></span><div class="button-row"><button class="button secondary small" data-action="file-copy" title="Ctrl + C">复制</button><button class="button secondary small" data-action="file-cut" title="Ctrl + X">剪切</button><button class="button secondary small" data-action="file-paste" title="Ctrl + V">粘贴</button><button class="button secondary small" data-action="file-rename" title="F2">重命名</button><button class="button danger small" data-action="file-trash" title="Delete · 可撤销">回收</button></div></div><div id="file-search-status" class="caption" role="status">${fileSearchStatus(data)}</div><div class="file-layout"><div class="file-list-panel"><div class="table-scroll file-table-scroll"><table id="file-table" role="grid" aria-label="文件列表" aria-multiselectable="true" tabindex="0"><thead><tr><th><input type="checkbox" id="file-select-all" aria-label="全选当前列表"></th><th>名称</th><th>大小</th><th>修改时间</th><th></th></tr></thead><tbody id="file-rows">${fileRows()}</tbody></table></div><div id="file-empty" ${state.files.length?'class="hidden"':''}>${empty(state.rootId?'没有匹配文件':'从一个目录开始',state.rootId?'清空搜索或切换目录；也可以新建文件夹。':'添加你准备使用的目录。')}</div></div><div class="preview" id="file-preview" tabindex="0" aria-label="文件预览">${empty('选择文件，立即预览','↑ / ↓ 切换预览；Enter 或双击在原应用打开。')}</div></div></div><div id="file-undo" class="banner info ${state.trashReceipts.length?'':'hidden'}">文件已移至回收区。<button class="link-button" data-action="file-restore">撤销上次删除 · Ctrl + Z</button></div>`;
+    $('#file-root').addEventListener('change',event=>{const rootId=event.target.value;event.target.value=state.rootId;busy(null,()=>loadFileFolder('',rootId));});
+    $('#file-search').addEventListener('input',()=>{if(!fileComposing)busy(null,()=>searchFiles(false));});
+    $('#file-search').addEventListener('compositionend',()=>busy(null,()=>searchFiles(false)));
+    $('#file-search').addEventListener('keydown',event=>{if(event.key==='Enter'&&!event.isComposing&&!fileComposing&&event.keyCode!==229&&Date.now()-fileCompositionEnd>100){event.preventDefault();busy(null,()=>searchFiles(true));}});
+    $('#file-path').addEventListener('keydown',event=>{if(event.key==='Enter'&&!event.isComposing&&!fileComposing&&event.keyCode!==229&&Date.now()-fileCompositionEnd>100){event.preventDefault();busy(null,()=>loadFileFolder(event.target.value.trim().replace(/\\/g,'/')));}});
+    $('#file-select-all').addEventListener('change',event=>selectAllFiles(event.target.checked));
+    updateFileSelection();if(state.fileSelection.size)await previewFileSelection();
+  }
+  function fileSearchStatus(data={}) {
+    const scope=state.fileSearchMode==='tree'?'子目录名称与文档内容':'当前目录名称';
+    return `${escape(scope)} · ${state.files.length} 项${data.truncated?' · 已达到搜索范围上限，请缩小目录或关键词':''}${Number.isFinite(data.scanned)?` · 检查 ${data.scanned} 项`:''}`;
+  }
+  function fileRows() { return state.files.map((file,index)=>`<tr class="file-row${state.fileSelection.has(file.path)?' selected':''}${state.fileClipboard?.mode==='cut'&&state.fileClipboard.rootId===state.rootId&&state.fileClipboard.items.some(item=>item.path===file.path)?' cut':''}" data-action="file-select" data-index="${index}" tabindex="${index===state.fileFocus?0:-1}" aria-selected="${state.fileSelection.has(file.path)}" aria-label="${escape(file.name)}"><td><input type="checkbox" data-file-checkbox="${index}" aria-label="选择 ${escape(file.name)}" ${state.fileSelection.has(file.path)?'checked':''} tabindex="-1"></td><td><span class="row-button"><span class="file-symbol">${file.is_dir?'▰':'▤'}</span><span>${escape(file.name)}${state.fileSearchMode==='tree'?`<small>${escape(file.path)}${file.match?` · ${escape(({name:'名称匹配',content:'内容匹配'})[file.match]||file.match)}`:''}</small>`:''}</span></span></td><td>${file.is_dir?'—':size(file.size)}</td><td>${escape(date(file.modified))}</td><td><button class="link-button" data-action="file-manage" data-index="${index}" aria-label="管理 ${escape(file.name)}">···</button></td></tr>`).join(''); }
+  async function searchFiles(deep=true) {
+    if(!state.rootId||state.fileBusy)return;
+    const query=$('#file-search')?.value||'',rootId=state.rootId,path=state.path,generation=state.renderId,token=++state.fileSearchToken;
+    state.fileQuery=query;state.fileSearchMode=deep&&query.trim()?'tree':'folder';
+    const status=$('#file-search-status');if(status)status.textContent=deep&&query.trim()?'正在搜索子目录名称与文档内容…':'正在筛选…';
+    const data=await api(`/api/suite/files${state.fileSearchMode==='tree'?'/search':''}?root_id=${encodeURIComponent(rootId)}&path=${encodeURIComponent(path)}&q=${encodeURIComponent(query)}`);
+    if(state.view!=='files'||generation!==state.renderId||token!==state.fileSearchToken||rootId!==state.rootId||path!==state.path)return;
+    state.files=array(data,'entries');state.fileSelection=new Set([...state.fileSelection].filter(path=>state.files.some(file=>file.path===path)));state.fileFocus=-1;state.fileAnchor=-1;
+    $('#file-rows').innerHTML=fileRows();$('#file-empty').classList.toggle('hidden',!!state.files.length);$('#file-search-status').innerHTML=fileSearchStatus(data);updateFileSelection();await previewFileSelection();
+  }
+  function selectedFiles() { return state.files.filter(file=>state.fileSelection.has(file.path)); }
+  function updateFileSelection() {
+    const files=selectedFiles();state.selected=files[0]||null;
+    document.querySelectorAll('.file-row').forEach(row=>{const index=Number(row.dataset.index),selected=state.fileSelection.has(state.files[index]?.path);row.classList.toggle('selected',selected);row.setAttribute('aria-selected',String(selected));row.tabIndex=index===state.fileFocus?0:-1;const checkbox=$('input',row);if(checkbox)checkbox.checked=selected;});
+    const checkbox=$('#file-select-all');if(checkbox){checkbox.checked=!!state.files.length&&files.length===state.files.length;checkbox.indeterminate=files.length>0&&files.length<state.files.length;}
+    const status=$('#file-selection-status');if(status)status.textContent=`${files.length?`已选 ${files.length} 项`:`${state.files.length} 项`}${state.fileClipboard?` · ${state.fileClipboard.mode==='cut'?'待移动':'已复制'} ${state.fileClipboard.items.length} 项`:''}${state.fileBusy?' · 操作中…':''}`;
+    for(const button of document.querySelectorAll('#file-workbench [data-action]')){
+      const action=button.dataset.action;
+      if(['file-copy','file-cut','file-trash'].includes(action))button.disabled=state.fileBusy||!files.length;
+      else if(action==='file-rename')button.disabled=state.fileBusy||files.length!==1;
+      else if(action==='file-paste')button.disabled=state.fileBusy||!state.fileClipboard?.items.length||!state.rootId;
+    }
+  }
+  function focusFileList() { const row=document.querySelector(`.file-row[data-index="${state.fileFocus}"]`);(row||$('#file-table'))?.focus({preventScroll:true});row?.scrollIntoView({block:'nearest'}); }
+  function selectAllFiles(selected=true) { state.fileSelection=new Set(selected?state.files.map(file=>file.path):[]);if(selected&&state.fileFocus<0)state.fileFocus=0;state.fileAnchor=state.fileFocus;updateFileSelection();busy(null,previewFileSelection); }
+  async function selectFile(index,options={}) {
+    if(state.fileBusy)return;const file=state.files[index];if(!file)return;
+    const previous=state.fileFocus;state.fileFocus=index;
+    if(options.range){const anchor=state.fileAnchor>=0?state.fileAnchor:(previous>=0?previous:index);if(!options.toggle)state.fileSelection.clear();for(let i=Math.min(anchor,index);i<=Math.max(anchor,index);i++)state.fileSelection.add(state.files[i].path);}
+    else if(options.toggle){if(state.fileSelection.has(file.path))state.fileSelection.delete(file.path);else state.fileSelection.add(file.path);state.fileAnchor=index;}
+    else {state.fileSelection=new Set([file.path]);state.fileAnchor=index;}
+    updateFileSelection();if(options.focus!==false)focusFileList();await previewFileSelection();
+  }
+  function fileActions() { return `<div class="button-row"><button class="button secondary small" data-action="file-rename">重命名 · F2</button><button class="button secondary small" data-action="file-copy">复制 · Ctrl C</button><button class="button secondary small" data-action="file-cut">剪切 · Ctrl X</button><button class="button secondary small" data-action="file-copy-to">复制到…</button><button class="button secondary small" data-action="file-move">移动到…</button><button class="button secondary small" data-action="file-import">送到项目</button><button class="button danger small" data-action="file-trash">移至回收区</button></div>`; }
+  async function previewFileSelection() {
+    const preview=$('#file-preview');if(!preview)return;const files=selectedFiles(),token=++state.filePreviewToken,rootId=state.rootId,generation=state.renderId;
+    if(!files.length){preview.innerHTML=empty('选择文件，立即预览','↑ / ↓ 切换预览；Enter 或双击在原应用打开。');return;}
+    if(files.length>1){preview.innerHTML=`<div class="panel-header"><h3>已选择 ${files.length} 项</h3></div><p class="caption">${files.filter(file=>file.is_dir).length} 个文件夹 · ${files.filter(file=>!file.is_dir).length} 个文件</p><ul class="file-selection-summary">${files.slice(0,25).map(file=>`<li>${escape(file.name)}</li>`).join('')}${files.length>25?`<li>另外 ${files.length-25} 项</li>`:''}</ul>${fileActions()}`;updateFileSelection();return;}
+    const file=files[0];
+    if(file.is_dir){preview.innerHTML=`<div class="panel-header"><h3>${escape(file.name)}</h3><button class="button secondary small" data-action="file-open">打开文件夹 · Enter</button></div>${empty('文件夹已选中','可以复制、剪切或进入；单击不会改变位置。')}${fileActions()}`;updateFileSelection();return;}
     preview.innerHTML=loading();
-    const data=await api(`/api/suite/file-preview?root_id=${encodeURIComponent(state.rootId)}&path=${encodeURIComponent(file.path)}`);if(state.view!=='files'||state.selected!==file)return;
-    let body='';
-    if(data.type==='text')body=`<pre>${escape(data.content)}</pre>`;
-    else if(data.type==='table'||(data.type==='archive'&&data.columns?.length))body=`${data.content?`<p class="caption">${escape(data.content)}</p>`:''}<div class="table-scroll"><table><thead><tr>${(data.columns||[]).map(column=>`<th>${escape(column)}</th>`).join('')}</tr></thead><tbody>${(data.rows||[]).map(row=>`<tr>${(Array.isArray(row)?row:Object.values(row)).map(cell=>`<td>${escape(cell)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
-    else if(data.type==='archive')body=`<pre>${escape(typeof data.content==='string'?data.content:(data.entries||data.rows||[]).map(entry=>typeof entry==='string'?entry:(entry.name||entry.path||'')).join('\n'))}</pre>`;
-    else body=empty('下载查看此文件','此格式可通过原应用打开。');
-    preview.innerHTML=`<div class="panel-header"><h3>${escape(file.name)}</h3><a class="button secondary small" href="/api/suite/file?root_id=${encodeURIComponent(state.rootId)}&path=${encodeURIComponent(file.path)}" download>下载</a></div>${body}${fileActions(file)}`;
+    try {
+      const data=await api(`/api/suite/file-preview?root_id=${encodeURIComponent(rootId)}&path=${encodeURIComponent(file.path)}`);
+      if(state.view!=='files'||generation!==state.renderId||token!==state.filePreviewToken||rootId!==state.rootId)return;
+      let body='';
+      if(data.type==='text')body=`<pre tabindex="0">${escape(data.content)}</pre>`;
+      else if(data.type==='table'||(data.type==='archive'&&data.columns?.length))body=`${data.content?`<p class="caption">${escape(data.content)}</p>`:''}<div class="table-scroll"><table><thead><tr>${(data.columns||[]).map(column=>`<th>${escape(column)}</th>`).join('')}</tr></thead><tbody>${(data.rows||[]).map(row=>`<tr>${(Array.isArray(row)?row:Object.values(row)).map(cell=>`<td>${escape(cell)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+      else if(data.type==='archive')body=`<pre>${escape(typeof data.content==='string'?data.content:(data.entries||data.rows||[]).map(entry=>typeof entry==='string'?entry:(entry.name||entry.path||'')).join('\n'))}</pre>`;
+      else body=empty('使用原应用查看','可以在原应用打开，或下载原文件。');
+      preview.innerHTML=`<div class="panel-header"><h3>${escape(file.name)}</h3><div class="button-row"><button class="button secondary small" data-action="file-open">原应用打开</button><a class="button secondary small" href="/api/suite/file?root_id=${encodeURIComponent(rootId)}&path=${encodeURIComponent(file.path)}" download>下载</a></div></div>${body}${fileActions()}`;updateFileSelection();
+    } catch(error) {if(token===state.filePreviewToken&&generation===state.renderId){preview.innerHTML=`<h3>${escape(file.name)}</h3>${empty('预览暂不可用',friendly(error))}<button class="button secondary small" data-action="file-open">原应用打开</button>${fileActions()}`;updateFileSelection();}}
+  }
+  async function openSelectedFile() {
+    const files=selectedFiles();if(files.length!==1){toast('请选择一个文件或文件夹打开。',true);return;}
+    const file=files[0];if(file.is_dir)return loadFileFolder(file.path);
+    const result=await post('/api/suite/files/open',{root_id:state.rootId,path:file.path});toast(result.detail||'已交给原应用打开。');
   }
   async function renderMemory(generation) {
     const [status,recent,settings]=await Promise.all([api('/api/suite/memory/status'),api('/api/suite/memory/recent?limit=20'),api('/api/suite/memory/settings')]);if(!current(generation))return;
@@ -137,10 +232,59 @@
   }
   function memoryEvents(events) { return events.length?events.map(event=>`<article class="idea-card"><h3>${escape(event.title||'记录')}</h3><div class="idea-text">${escape(event.text||event.content)}</div><div class="idea-meta"><span>${escape(date(event.timestamp||event.created_at))} · ${escape(event.type||'note')}</span><button class="link-button danger" data-action="memory-forget" data-id="${escape(event.id)}">遗忘</button></div></article>`).join(''):empty('还没有记录','添加第一条记录，或主动开启你需要的来源。'); }
   async function memorySearch() { const query=$('#memory-search')?.value||'';const data=await api(`/api/suite/memory/search?q=${encodeURIComponent(query)}&limit=30`);if(state.view==='memory')$('#memory-events').innerHTML=memoryEvents(array(data,'events')); }
+  function qwenActivity(status) {
+    const listening=status.listening===true,paused=status.paused===true||status.status==='paused',starting=status.status==='starting';
+    return {label:starting?'连接准备中':paused?'监听已暂停':listening?'正在监听通话':status.status==='needs_setup'?'需要配置':'监听未启动',active:listening,detail:status.detail||status.dependency_reason||'请检查千问客户端与监听服务。'};
+  }
+  function qwenStatusMarkup(status) {
+    const activity=qwenActivity(status),apps=status.apps||[],name=key=>apps.find(app=>app.key===key)?.label||key;
+    const calls=(status.active_calls||[]).map(name),pending=(status.pending||[]).map(name);
+    const recording=status.recording_verified===true?(status.recording?'已确认：正在录音':'当前未录音'):'录音状态尚未核实';
+    const panelURL=qwenPanelURL(status);
+    return `<div class="status-card"><span class="status-symbol">${activity.active?'●':'◇'}</span><div><h3><span>${escape(activity.label)}</span> <span class="pill ${activity.active?'':'warn'}">${status.source==='original'?'已连接原监听服务':'Suite 监听服务'}</span></h3><p>${escape(activity.detail)}</p><p><strong>${escape(recording)}</strong>${calls.length?` · 通话检测：${escape(calls.join('、'))}`:''}${pending.length?` · 等待触发：${escape(pending.join('、'))}`:''}</p>${status.hotkey?`<p>千问录音快捷键：${escape(status.hotkey)}</p>`:''}${status.error?`<p class="qwen-error">${escape(status.error)}</p>`:''}${status.control_note?`<p>${escape(status.control_note)}</p>`:''}<p class="caption">${status.source==='original'?'使用这台机器已有的监听与设置，不会再启动第二套。暂停监听不会结束千问中的录音。':'启动监听会监测你启用的通话应用；停止监听不会结束千问内的录音。'}</p>${panelURL?`<a class="button secondary small" id="qwen-original-panel" href="${escape(panelURL)}" target="_blank" rel="noopener noreferrer">打开原千问完整面板 ↗</a>`:''}</div></div>`;
+  }
+  function qwenPanelURL(status) {
+    if(status.source!=='original'||typeof status.panel_url!=='string')return '';
+    try{const url=new URL(status.panel_url);return url.protocol==='http:'&&url.hostname==='127.0.0.1'&&Number(url.port)>0&&Number(url.port)<=65535&&url.pathname==='/'&&!url.search&&!url.hash&&!url.username&&!url.password?url.href:'';}catch{return '';}
+  }
+  function paintQwenStatus(status) {
+    const panel=$('#qwen-live-status');if(!panel)return;panel.innerHTML=qwenStatusMarkup(status);
+    const start=$('[data-action="qwen-start"]'),stop=$('[data-action="qwen-stop"]'),trigger=$('[data-action="qwen-trigger"]');
+    if(start){start.textContent=status.paused?'恢复监听':'启动监听';start.disabled=status.can_start===false||status.listening===true;}
+    if(stop){stop.textContent=status.source==='original'?'暂停监听':'停止监听';stop.disabled=status.can_stop===false||!status.running||status.paused===true;}
+    if(trigger)trigger.disabled=status.can_trigger===false||status.status==='starting';
+    // A listener may become discoverable after the first paint. Refresh its
+    // nonsecret controls only while no user draft exists; polling never edits a draft.
+    const config=status.configuration;
+    if(config&&!state.qwenConfigDirty&&JSON.stringify(config)!==state.qwenShownConfig){
+      state.qwenShownConfig=JSON.stringify(config);
+      const apps=status.apps?.length?status.apps:Array.isArray(config.apps)?config.apps:[];
+      const appPanel=$('#qwen-config-form .qwen-apps');if(appPanel)appPanel.innerHTML=apps.map(app=>`<label><input type="checkbox" data-qwen-app="${escape(app.key)}" ${app.enabled?'checked':''}>${escape(app.label)}</label>`).join('');
+      for(const [id,value] of [['qwen-hotkey',config.hotkey],['qwen-poll',config.poll_interval_sec],['qwen-debounce',config.start_debounce_sec],['qwen-cooldown',config.retrigger_cooldown_sec]])if($('#'+id)&&value!==undefined)$('#'+id).value=value;
+      if($('#qwen-config-origin'))$('#qwen-config-origin').textContent=config.source==='original'?'当前使用原服务的配置。保存后直接更新原监听，不创建第二套配置。':'设置只修改监听规则，不会启动录音。';
+    }
+    $('#qwen-status-time').textContent=`状态更新于 ${new Date().toLocaleTimeString('zh-CN')} · 每 3 秒读取一次`;
+  }
+  function scheduleQwenStatus(generation) {
+    clearTimeout(qwenStatusTimer);if(state.view!=='qwen'||!current(generation))return;
+    qwenStatusTimer=setTimeout(async()=>{
+      if(state.view!=='qwen'||!current(generation))return;
+      try{const status=await api('/api/suite/qwen/status');if(state.view==='qwen'&&current(generation))paintQwenStatus(status);}
+      catch(error){if(state.view==='qwen'&&current(generation))$('#qwen-status-time').textContent=`状态暂未更新：${friendly(error)}。将继续尝试连接。`;}
+      finally{scheduleQwenStatus(generation);}
+    },3000);
+  }
+  function qwenFormConfiguration() {
+    const apps={};for(const input of document.querySelectorAll('[data-qwen-app]'))apps[input.dataset.qwenApp]={enabled:input.checked};
+    return {apps,trigger:{hotkey:$('#qwen-hotkey').value.trim()},poll_interval_sec:Number($('#qwen-poll').value),start_debounce_sec:Number($('#qwen-debounce').value),retrigger_cooldown_sec:Number($('#qwen-cooldown').value)};
+  }
   async function renderQwen(generation) {
     const [status,recordings]=await Promise.all([api('/api/suite/qwen/status'),api('/api/suite/recordings')]);if(!current(generation))return;
-    const items=array(recordings,'recordings');
-    $('#content').innerHTML=`<div class="hero"><div><h2>录音完成后，整理下一步。</h2><p>连接千问桌面端。启动自动化后会监测通话并触发录音；也可以只手动触发。</p></div><div class="hero-mark">≋</div></div><div class="panel"><div class="panel-header"><h2>千问自动化</h2><div class="button-row"><button class="button secondary" data-action="qwen-start">启动自动化</button><button class="button secondary" data-action="qwen-stop">停止自动化</button></div></div>${statusMarkup(status,'千问','请先安装并打开千问桌面端，再启动连接。')}<div class="button-row"><button class="button" data-action="qwen-trigger">手动触发一次</button><span class="caption">触发前，请确认千问中的当前录音与页面。</span></div><p class="caption">打开此页不会启动监测或发起模型请求。</p></div><div class="panel"><div class="panel-header"><div><h2>录音归档 <span class="pill">${items.length}</span></h2><p>这里只读取已有归档，项目资料可在文件模块中关联。</p></div><button class="button secondary small" data-action="refresh">刷新归档</button></div>${items.length?`<div class="table-scroll"><table><thead><tr><th>录音</th><th>文件</th><th>大小</th><th>修改时间</th></tr></thead><tbody>${items.map(item=>`<tr><td>${escape(item.name)}</td><td>${escape(Array.isArray(item.files)?item.files.length:(item.files??'—'))}</td><td>${size(item.size_bytes)}</td><td>${escape(date(item.modified_at))}</td></tr>`).join('')}</tbody></table></div>`:empty('暂无录音归档','完成录音并配置归档来源后，可在这里查看。')}</div>`;
+    const items=array(recordings,'recordings'),saved=status.configuration||{},configuration={...saved,...state.qwenConfigDraft},apps=status.apps?.length?status.apps:Array.isArray(saved.apps)?saved.apps:Object.keys(saved.apps||{}).map(key=>({key,label:key,enabled:saved.apps[key]?.enabled}));
+    $('#content').innerHTML=`<div class="hero"><div><h2>通话监听，录音与整理。</h2><p>显示这台机器实际监听状态；原监听服务可以继续使用，录音仍由千问客户端完成。</p></div><div class="hero-mark">≋</div></div><div class="panel"><div class="panel-header"><h2>千问自动录音</h2><div class="button-row"><button class="button secondary" data-action="qwen-start">启动监听</button><button class="button secondary" data-action="qwen-stop">暂停监听</button></div></div><div id="qwen-live-status" role="status">${qwenStatusMarkup(status)}</div><div class="button-row"><button class="button" data-action="qwen-trigger">手动触发一次</button><span class="caption">发送触发请求后，以实际录音状态为准。</span></div><p class="caption" id="qwen-status-time"></p><details class="qwen-settings" ${state.qwenConfigDirty?'open':''}><summary>监听应用、快捷键与诊断</summary><form id="qwen-config-form"><p class="caption" id="qwen-config-origin">${saved.source==='original'?'当前使用原服务的配置。保存后直接更新原监听，不创建第二套配置。':'设置只修改监听规则，不会启动录音。'}${state.qwenConfigDirty?' · 补充设置尚未保存。':''}</p><div class="qwen-apps">${apps.map(app=>`<label><input type="checkbox" data-qwen-app="${escape(app.key)}" ${configuration.apps?.[app.key]?.enabled??app.enabled?'checked':''}>${escape(app.label)}</label>`).join('')||'<p class="caption">尚未读取到应用设置，请重试连接。</p>'}</div><div class="form-field"><label for="qwen-hotkey">千问客户端的实际录音快捷键</label><input id="qwen-hotkey" value="${escape(configuration.trigger?.hotkey||configuration.hotkey||status.hotkey||'')}" placeholder="填写与你的千问设置一致的组合键" maxlength="80" required><span class="caption">例如 rightctrl+/；必须与你在千问客户端设置的组合键一致。</span></div><details><summary class="caption">检测与防重复间隔</summary><div class="qwen-timing"><div class="form-field"><label for="qwen-poll">检测间隔（秒）</label><input id="qwen-poll" type="number" min="0.5" max="30" step="0.1" value="${escape(configuration.poll_interval_sec??2)}" required></div><div class="form-field"><label for="qwen-debounce">持续通话多久后触发（秒）</label><input id="qwen-debounce" type="number" min="0" max="120" step="1" value="${escape(configuration.start_debounce_sec??3)}" required></div><div class="form-field"><label for="qwen-cooldown">再次触发间隔（秒）</label><input id="qwen-cooldown" type="number" min="0" max="3600" step="1" value="${escape(configuration.retrigger_cooldown_sec??30)}" required></div></div><p class="caption">${configuration.require_playback?'通话检测还要求播放音频；仅启动应用不代表进入通话。':'按启用的应用通话检测规则判断；没有检测到通话时不自动触发。'}</p></details><div class="button-row"><button class="button secondary" type="submit">保存监听设置</button><span id="qwen-config-status" class="caption">${state.qwenConfigDirty?'设置尚未保存':''}</span></div></form></details><p class="caption">打开此页只读取状态。原服务会按既有设置继续监听；离开 Suite 不会关闭原监听。</p></div><div class="panel"><div class="panel-header"><div><h2>录音归档 <span class="pill">${items.length}</span></h2><p>读取已有归档，资料可在文件模块中关联项目。</p></div><button class="button secondary small" data-action="refresh">刷新归档</button></div>${items.length?`<div class="table-scroll"><table><thead><tr><th>录音</th><th>文件</th><th>大小</th><th>修改时间</th></tr></thead><tbody>${items.map(item=>`<tr><td>${escape(item.name)}</td><td>${escape(Array.isArray(item.files)?item.files.length:(item.files??'—'))}</td><td>${size(item.size_bytes)}</td><td>${escape(date(item.modified_at))}</td></tr>`).join('')}</tbody></table></div>`:empty('暂无录音归档','这里只显示实际归档；触发请求成功不等于录音或归档成功。')}</div>`;
+    state.qwenShownConfig=null;paintQwenStatus(status);scheduleQwenStatus(generation);
+    $('#qwen-config-form').addEventListener('input',()=>{state.qwenConfigDraft=qwenFormConfiguration();state.qwenConfigDirty=true;$('#qwen-config-status').textContent='设置尚未保存';});
+    $('#qwen-config-form').addEventListener('submit',event=>{event.preventDefault();busy(event.submitter,async()=>{const draft=qwenFormConfiguration();state.qwenConfigDraft=draft;state.qwenConfigDirty=true;await post('/api/suite/qwen/config',draft);state.qwenConfigDraft=null;state.qwenConfigDirty=false;toast('监听设置已保存。');if(state.view==='qwen')await render();});});
   }
   async function renderPhone(generation) {
     const [status,result]=await Promise.all([api('/api/suite/phone/status'),api('/api/suite/phone/devices')]);if(!current(generation))return;
@@ -151,8 +295,8 @@
     $('#phone-connect-form').addEventListener('submit',event=>{event.preventDefault();busy(event.submitter,async()=>{await post('/api/suite/phone/connect',{address:$('#phone-connect-address').value.trim()});toast('连接请求已完成，请刷新设备。');});});
   }
   async function renderProcesses(generation) {
-    const data=await api('/api/suite/processes');if(!current(generation))return;state.processes=array(data,'processes');const system=data.system||{};
-    $('#content').innerHTML=`<div class="stats-grid"><div class="stat"><div class="stat-label">CPU</div><div class="stat-value">${numeric(system.cpu_percent??system.cpu,'%')}</div><div class="stat-note">系统实时读数</div></div><div class="stat"><div class="stat-label">内存使用</div><div class="stat-value">${numeric(system.memory_percent,'%')}</div><div class="stat-note">${numeric(system.memory_used_mb,' MB',0)}</div></div><div class="stat"><div class="stat-label">进程数</div><div class="stat-value">${state.processes.length}</div><div class="stat-note">本次可读取的进程</div></div><div class="stat"><div class="stat-label">GPU / 温度</div><div class="stat-value">—</div><div class="stat-note">未接入真实硬件传感器</div></div></div><div class="panel"><div class="panel-header"><div><h2>进程管理</h2><p>每次操作验证 PID 与创建时间；系统及工作台进程受到保护。</p></div><button class="button secondary small" data-action="refresh">刷新进程</button></div><div class="toolbar"><input id="process-search" type="search" placeholder="按进程名称搜索" aria-label="搜索进程"><span class="refresh-time">CPU 未采样时显示 —；不自动刷新或结束进程。</span></div><div class="table-scroll"><table><thead><tr><th>进程</th><th>PID</th><th>CPU</th><th>内存</th><th>操作</th></tr></thead><tbody id="process-rows">${processRows(state.processes)}</tbody></table></div></div>`;
+    const [data]=await Promise.all([api('/api/suite/processes'),nativeTools()]);if(!current(generation))return;state.processes=array(data,'processes');const system=data.system||{};
+    $('#content').innerHTML=`<div class="stats-grid"><div class="stat"><div class="stat-label">CPU</div><div class="stat-value">${numeric(system.cpu_percent??system.cpu,'%')}</div><div class="stat-note">系统实时读数</div></div><div class="stat"><div class="stat-label">内存使用</div><div class="stat-value">${numeric(system.memory_percent,'%')}</div><div class="stat-note">${numeric(system.memory_used_mb,' MB',0)}</div></div><div class="stat"><div class="stat-label">进程数</div><div class="stat-value">${state.processes.length}</div><div class="stat-note">本次可读取的进程</div></div><div class="stat"><div class="stat-label">GPU / 温度</div><div class="stat-value">—</div><div class="stat-note">未接入真实硬件传感器</div></div></div><div class="panel"><div class="panel-header"><div><h2>进程管理</h2><p>每次操作验证 PID 与创建时间；系统及工作台进程受到保护。</p></div><div class="button-row">${nativeToolButton('processes')}<button class="button secondary small" data-action="refresh">刷新进程</button></div></div><div class="toolbar"><input id="process-search" type="search" placeholder="按进程名称搜索" aria-label="搜索进程"><span class="refresh-time">CPU 未采样时显示 —；不自动刷新或结束进程。</span></div><div class="table-scroll"><table><thead><tr><th>进程</th><th>PID</th><th>CPU</th><th>内存</th><th>操作</th></tr></thead><tbody id="process-rows">${processRows(state.processes)}</tbody></table></div></div>`;
     $('#process-search').addEventListener('input',event=>{$('#process-rows').innerHTML=processRows(state.processes.filter(process=>String(process.name).toLowerCase().includes(event.target.value.toLowerCase())));});
   }
   function processRows(processes) { return processes.map(process=>`<tr><td class="process-name">${escape(process.name)} ${process.protected?'<span class="pill off">受保护</span>':''}</td><td>${escape(process.pid)}</td><td>${numeric(process.cpu,'%')}</td><td>${numeric(process.memory_mb,' MB')}</td><td><div class="small-actions">${process.protected?'<span class="muted">—</span>':`<button class="link-button" data-action="process-control" data-pid="${process.pid}" data-control="suspend">暂停</button><button class="link-button" data-action="process-control" data-pid="${process.pid}" data-control="resume">恢复</button><button class="link-button" data-action="process-control" data-pid="${process.pid}" data-control="priority">优先级</button><button class="link-button danger" data-action="process-control" data-pid="${process.pid}" data-control="terminate">结束</button>`}</div></td></tr>`).join(''); }
@@ -174,18 +318,85 @@
     const result=await api('/api/suite/components');if(!current(generation))return;const components=array(result,'components');state.bootstrap.components=components;const repositories=array(state.bootstrap,'repositories');
     $('#content').innerHTML=`<div class="hero"><div><h2>一个入口，每个工具都有自己的位置。</h2><p>七个主要模块连接实际功能；其余仓库保留在目录，按需使用。</p></div><div class="hero-mark">▦</div></div><div class="section-label"><h2>主要模块 <span class="pill">${components.length}</span></h2><span>启动、停止与依赖状态</span></div><div class="catalogue-grid">${components.map(componentCard).join('')||empty('模块目录准备中','刷新查看已注册模块。')}</div><div class="section-label"><h2>仓库目录 <span class="pill">${repositories.length}</span></h2><span>完整保留 · 清楚分工</span></div><div class="catalogue-grid" id="repository-catalogue">${repositories.map(repositoryCard).join('')||empty('仓库目录准备中','目录由已配置的本地仓库生成。')}</div>`;
   }
+  const newFileRequest = () => crypto.randomUUID?crypto.randomUUID():`file-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  function minimalFileSelection(files) { return files.filter(file=>!files.some(parent=>parent!==file&&parent.is_dir&&file.path.toLowerCase().startsWith(parent.path.toLowerCase()+'/'))); }
   async function fileOperation(action) {
-    const file=state.selected;const operation=action.replace('file-','');if(operation!=='mkdir'&&!file){toast('请先选择一个文件。',true);return;}
-    if(operation==='trash'){const answer=await modal('移至回收区',`<p class="caption">${escape(file.name)} 将移至所选目录的回收区，可撤销此次操作。</p>`,'移至回收区');if(!answer)return;const result=await post('/api/suite/files/operation',{operation:'trash',root_id:state.rootId,path:file.path});state.trashReceipt=result.receipt_id||result.id||result.receipt?.id||result.receipt?.receipt_id;toast('已移至回收区。');await render();return;}
-    if(operation==='import'){await refreshProjects();if(!state.projects.length){toast('请先在 WorkOS 创建项目，再刷新项目列表。',true);return;}const answer=await modal('送到项目',`<div class="form-field"><label for="dialog-project">选择项目</label><select id="dialog-project">${projectOptions('',false)}</select></div>`,'导入项目');if(!answer)return;await post('/api/suite/files/import',{root_id:state.rootId,paths:[file.path],project_id:$('#dialog-project').value});toast('已关联到项目资料。');return;}
-    const labels={mkdir:'新建文件夹',rename:'重命名',copy:'复制文件',move:'移动文件'};
-    const initial=operation==='rename'?file.name:'';
-    const isTransfer=operation==='copy'||operation==='move';
-    const answer=await modal(labels[operation],`${isTransfer?`<div class="form-field"><label for="dialog-destination-root">目标目录</label><select id="dialog-destination-root">${rootOptions()}</select></div>`:''}<div class="form-field"><label for="dialog-path">${operation==='mkdir'?'文件夹名称':operation==='rename'?'新名称':'目标路径（相对于目标根目录）'}</label><input id="dialog-path" value="${escape(initial)}" required placeholder="${isTransfer?'例如：项目资料/文件名':''}"></div><p class="caption">路径范围限于你添加的目录。</p>`);if(!answer)return;
-    const target=$('#dialog-path').value.trim();if(!target)return;
-    const body={operation,root_id:state.rootId,path:operation==='mkdir'?pathJoin(state.path,target):file.path};if(operation!=='mkdir')body.target=operation==='rename'?pathJoin(file.path.split('/').slice(0,-1).join('/'),target):target;
-    if(isTransfer)body.destination_root_id=$('#dialog-destination-root').value;
-    await post('/api/suite/files/operation',body);toast('文件操作已完成。');await render();
+    if(state.fileBusy)return;state.fileBusy=true;updateFileSelection();
+    try { return await performFileOperation(action); }
+    finally {state.fileBusy=false;if(state.view==='files')updateFileSelection();}
+  }
+  async function copySelectedFiles(mode) {
+    const files=minimalFileSelection(selectedFiles());if(!files.length){toast('请先选择文件或文件夹。',true);return;}
+    const clipboard={rootId:state.rootId,mode,items:files.map(file=>({...file,requests:new Map()}))};state.fileClipboard=clipboard;
+    document.querySelectorAll('.file-row').forEach(row=>row.classList.toggle('cut',mode==='cut'&&state.fileSelection.has(state.files[Number(row.dataset.index)]?.path)));
+    updateFileSelection();
+    try {const result=await post('/api/suite/files/clipboard',{root_id:clipboard.rootId,paths:clipboard.items.map(file=>file.path),mode});toast(result.system_clipboard?`${mode==='cut'?'已剪切':'已复制'} ${files.length} 项；可在这里或资源管理器粘贴。`:`${mode==='cut'?'已剪切':'已复制'} ${files.length} 项；在目标目录按 Ctrl + V。${result.detail||''}`);}
+    catch(error){toast(`已保留 ${files.length} 项，可在工作台内粘贴。系统剪贴板暂不可用：${friendly(error)}`,true);}
+  }
+  function availableCopyName(file,names) {
+    if(!names.has(file.name.toLowerCase()))return file.name;
+    const dot=file.is_dir?-1:file.name.lastIndexOf('.'),suffix=dot>0?file.name.slice(dot):'',stem=dot>0?file.name.slice(0,dot):file.name;
+    let name=`${stem} - 副本${suffix}`,number=2;while(names.has(name.toLowerCase()))name=`${stem} - 副本 (${number++})${suffix}`;return name;
+  }
+  async function transferFiles(clipboard,destinationRoot=state.rootId,destinationPath=state.path) {
+    if(!clipboard?.items.length){toast('先选择文件，再按 Ctrl + C 或 Ctrl + X。',true);return;}
+    const data=await api(`/api/suite/files?root_id=${encodeURIComponent(destinationRoot)}&path=${encodeURIComponent(destinationPath)}`),names=new Set(array(data,'entries').map(file=>file.name.toLowerCase())),remaining=[],done=[];
+    const signature=JSON.stringify([clipboard.mode,destinationRoot,destinationPath]);let errorMessage='';
+    for(const file of clipboard.items){
+      const initial=pathJoin(destinationPath,file.name);
+      if(clipboard.rootId===destinationRoot&&(initial.toLowerCase()===file.path.toLowerCase()&&clipboard.mode==='cut'||file.is_dir&&`${destinationPath}/`.toLowerCase().startsWith(`${file.path}/`.toLowerCase()))){remaining.push(file);errorMessage='目标与原地址相同或位于原文件夹内，原文件已保留。';continue;}
+      if(clipboard.mode==='cut'&&names.has(file.name.toLowerCase())){remaining.push(file);errorMessage='目标已有同名文件，原文件已保留。';continue;}
+      let request=file.requests?.get(signature);
+      if(!request){const name=clipboard.mode==='copy'?availableCopyName(file,names):file.name;request={operation:clipboard.mode==='cut'?'move':'copy',root_id:clipboard.rootId,path:file.path,destination_root_id:destinationRoot,target:pathJoin(destinationPath,name),request_id:newFileRequest()};file.requests?.set(signature,request);}
+      try {await post('/api/suite/files/operation',request);file.requests?.delete(signature);names.add(request.target.split('/').pop().toLowerCase());done.push(request.target);}
+      catch(error){remaining.push(file);errorMessage=friendly(error);}
+    }
+    if(state.fileClipboard===clipboard){if(clipboard.mode==='cut'||remaining.length)state.fileClipboard=remaining.length?{...clipboard,items:remaining}:null;}
+    if(state.rootId===destinationRoot&&state.path===destinationPath&&state.view==='files'){state.fileSelection=new Set(done);await render();focusFileList();}
+    toast(`${done.length?`已${clipboard.mode==='cut'?'移动':'复制'} ${done.length} 项。`:''}${remaining.length?`${remaining.length} 项未完成，保留原文件和待粘贴项。${errorMessage}`:''}`,!!remaining.length);
+  }
+  async function restoreFiles() {
+    const batch=state.trashReceipts.at(-1);if(!batch)return;
+    const remaining=[];let restored=0,errorMessage='';
+    for(const item of batch){try{await post('/api/suite/files/operation',{operation:'restore',root_id:item.rootId,receipt_id:item.id,request_id:item.restoreRequest||(item.restoreRequest=newFileRequest())});restored++;}catch(error){remaining.push(item);errorMessage=friendly(error);}}
+    if(remaining.length)state.trashReceipts[state.trashReceipts.length-1]=remaining;else state.trashReceipts.pop();
+    if(state.view==='files')await render();toast(`已恢复 ${restored} 项。${remaining.length?`${remaining.length} 项未恢复；原地址未覆盖。${errorMessage}`:''}`,!!remaining.length);
+  }
+  async function performFileOperation(action) {
+    const operation=action.replace('file-',''),files=minimalFileSelection(selectedFiles()),rootId=state.rootId,folder=state.path;
+    if(operation==='restore')return restoreFiles();
+    if(operation==='paste')return transferFiles(state.fileClipboard);
+    if(operation==='copy'||operation==='cut')return copySelectedFiles(operation);
+    if(operation!=='mkdir'&&!files.length){toast('请先选择文件或文件夹。',true);return;}
+    if(operation==='trash'){
+      const answer=await modal(`将 ${files.length} 项移至回收区？`,`<p class="caption">文件与文件夹内容将保留在本机回收区。可以用 Ctrl + Z 撤销；不会永久删除。</p><ul class="file-selection-summary">${files.slice(0,12).map(file=>`<li>${escape(file.name)}</li>`).join('')}${files.length>12?`<li>另外 ${files.length-12} 项</li>`:''}</ul>`,'移至回收区');if(!answer)return;
+      const receipts=[];let errorMessage='';
+      for(const file of files){try{const result=await post('/api/suite/files/operation',{operation:'trash',root_id:rootId,path:file.path,request_id:newFileRequest()});receipts.push({id:result.receipt_id||result.id||result.receipt?.id,rootId});state.fileSelection.delete(file.path);}catch(error){errorMessage=friendly(error);break;}}
+      if(receipts.length)state.trashReceipts.push(receipts);if(state.view==='files')await render();focusFileList();toast(`已移至回收区 ${receipts.length} 项。${errorMessage?`其他项目保留。${errorMessage}`:'Ctrl + Z 可撤销。'}`,!!errorMessage);return;
+    }
+    if(operation==='import'){
+      if(files.some(file=>file.is_dir)){toast('请只选择需要导入的文件；文件夹可以进入后多选。',true);return;}
+      await refreshProjects();if(!state.projects.length){toast('请先在 WorkOS 创建项目，再刷新项目列表。',true);return;}
+      const answer=await modal('送到项目',`<p class="caption">已选 ${files.length} 个文件；原文件保留。</p><div class="form-field"><label for="dialog-project">选择项目</label><select id="dialog-project">${projectOptions('',false)}</select></div>`,'导入项目');if(!answer)return;
+      await post('/api/suite/files/import',{root_id:rootId,paths:files.map(file=>file.path),project_id:$('#dialog-project').value});toast('已关联到项目资料。');return;
+    }
+    if(operation==='copy-to'||operation==='move'){
+      const answer=await modal(operation==='move'?'移动到文件夹':'复制到文件夹',`<p class="caption">已选 ${files.length} 项。复制遇到重名会生成副本；移动不会覆盖已有文件。</p><div class="form-field"><label for="dialog-destination-root">目标目录</label><select id="dialog-destination-root">${rootOptions()}</select></div><div class="form-field"><label for="dialog-path">目标文件夹相对路径</label><input id="dialog-path" placeholder="留空表示所选根目录"></div>`);if(!answer)return;
+      return transferFiles({rootId,mode:operation==='move'?'cut':'copy',items:files.map(file=>({...file,requests:new Map()}))},$('#dialog-destination-root').value,$('#dialog-path').value.trim().replace(/\\/g,'/'));
+    }
+    if(operation==='rename'&&files.length!==1){toast('F2 一次重命名一项；请先选择一个文件。',true);return;}
+    const file=files[0],initial=operation==='rename'?file.name:'';
+    const answerPromise=modal(operation==='mkdir'?'新建文件夹':'重命名',`<div class="form-field"><label for="dialog-path">${operation==='mkdir'?'文件夹名称':'新名称'}</label><input id="dialog-path" value="${escape(initial)}" required maxlength="255"></div><p class="caption">保留扩展名；名称不能包含路径分隔符。</p>`);
+    const input=$('#dialog-path');setTimeout(()=>{input.focus();const dot=initial.lastIndexOf('.');input.setSelectionRange(0,file&&!file.is_dir&&dot>0?dot:initial.length);},60);
+    const answer=await answerPromise;if(!answer)return;const target=$('#dialog-path').value.trim();
+    if(!target||/[\\/:*?"<>|]/.test(target)||target==='.'||target==='..'){toast('请输入有效名称，不要包含路径或特殊字符。',true);return;}
+    if(operation==='rename'&&target===file.name)return;
+    const body={operation,root_id:rootId,path:operation==='mkdir'?pathJoin(folder,target):file.path,request_id:newFileRequest()};
+    if(operation==='rename')body.target=pathJoin(file.path.split('/').slice(0,-1).join('/'),target);
+    await post('/api/suite/files/operation',body);state.fileSelection=new Set([body.target||body.path]);toast(operation==='rename'?'已重命名。':'文件夹已创建。');if(state.view==='files'){await render();state.fileFocus=state.files.findIndex(item=>item.path===(body.target||body.path));updateFileSelection();focusFileList();}
+  }
+  function showFileShortcuts() {
+    return modal('文件工作台快捷键',`<dl class="shortcut-list">${[['↑ / ↓ · Home / End','移动选择并预览'],['Ctrl / Shift + 点击','逐项多选 / 连续多选'],['Shift + ↑ / ↓','扩展连续选择'],['Ctrl + A','全选当前列表'],['Enter / 双击','进入文件夹 / 原应用打开'],['Alt + ← / → / ↑','后退 / 前进 / 上一级'],['Backspace','上一级'],['Ctrl + C / X / V','复制 / 剪切 / 粘贴真实文件'],['F2','重命名所选一项'],['Delete','移至回收区，确认后执行'],['Ctrl + Z','撤销上次回收'],['Ctrl + F / L','搜索 / 目录地址'],['输入搜索 · Enter','本层实时筛选 / 递归名称与内容搜索'],['F5','刷新并保留选中项目'],['Esc','清除选择']].map(([keys,detail])=>`<dt>${escape(keys)}</dt><dd>${escape(detail)}</dd>`).join('')}</dl><p class="caption">文本输入、中文组词和弹窗中保留原有键盘行为。选中文字时 Ctrl + C 复制文字。网页缩放仍使用浏览器 Ctrl + / −。</p>`,'知道了');
   }
   async function processControl(button) {
     const process=state.processes.find(item=>String(item.pid)===button.dataset.pid);if(!process||process.protected)return;
@@ -196,34 +407,69 @@
   }
   document.addEventListener('click',event=>{
     const button=event.target.closest('[data-action]');if(!button||button.disabled)return;const action=button.dataset.action;
+    if(action==='dialog-cancel'){$('#action-dialog').close('cancel');return;}
     if(action==='navigate'){navigate(button.dataset.view);return;}
     if(action==='refresh'){render();return;}
     if(action==='workos-section'){const iframe=$('#workos-frame');if(iframe)iframe.src=`/workos/#${button.dataset.section}`;return;}
     if(action==='workos-navigation'){try{const style=$('#workos-frame')?.contentDocument?.getElementById('workos-suite-embed-style');if(style){style.disabled=!style.disabled;button.textContent=style.disabled?'收起原版导航':'完整导航';}}catch{toast('请在独立窗口使用完整导航。');}return;}
     if(action==='idea-original'){const panel=$('#idea-original-panel');panel.classList.toggle('hidden');const iframe=$('iframe',panel);if(!panel.classList.contains('hidden')&&!iframe.src)iframe.src=iframe.dataset.src;return;}
     busy(button.tagName==='BUTTON'?button:null,async()=>{
-      if(action==='refresh-projects'){await refreshProjects();$('#idea-project').innerHTML=projectOptions();toast('项目列表已刷新。');}
+      if(action==='native-tool-launch'){const id=button.dataset.toolId;if(!['files','processes'].includes(id))return;const result=await post(`/api/suite/native-tools/${id}/launch`,{});toast(result.detail||'完整原版窗口已启动；使用原工具的设置与功能。');}
+      else if(action==='refresh-projects'){await refreshProjects();$('#idea-project').innerHTML=projectOptions();toast('项目列表已刷新。');}
       else if(action==='idea-share'){await refreshProjects();if(!state.projects.length){toast('请先在 WorkOS 创建项目。',true);return;}const answer=await modal('送到项目笔记',`<div class="form-field"><label for="dialog-project">选择项目</label><select id="dialog-project">${projectOptions('',false)}</select></div>`,'创建项目笔记');if(answer){await post(`/api/suite/ideas/${encodeURIComponent(button.dataset.id)}/share`,{project_id:$('#dialog-project').value});toast('已创建项目笔记。');await render();}}
       else if(action==='idea-delete'){const answer=await modal('删除灵感','<p class="caption">删除这条收件箱灵感？已创建的项目笔记会保留。</p>','删除');if(answer){await api(`/api/suite/ideas/${encodeURIComponent(button.dataset.id)}`,{method:'DELETE'});toast('灵感已删除。');await render();}}
       else if(action==='root-add'){const answer=await modal('添加文件目录','<div class="form-field"><label for="dialog-root">目录完整路径</label><input id="dialog-root" placeholder="选择你希望在工作台使用的目录" required></div><div class="form-field"><label for="dialog-root-label">显示名称</label><input id="dialog-root-label" placeholder="例如：项目资料"></div>','添加目录');if(answer){await post('/api/suite/roots',{path:$('#dialog-root').value.trim(),label:$('#dialog-root-label').value.trim()});state.bootstrap=await api('/api/suite/bootstrap');await render();toast('目录已添加。');}}
-      else if(action==='file-up'){state.path=state.path.split('/').filter(Boolean).slice(0,-1).join('/');await render();}
-      else if(action==='file-root'){state.path='';await render();}
+      else if(action==='file-up'||action==='file-back'||action==='file-forward')await fileNavigate(action.replace('file-',''));
+      else if(action==='file-root')await loadFileFolder('');
+      else if(action==='file-folder')await loadFileFolder(button.dataset.path);
+      else if(action==='file-go')await loadFileFolder($('#file-path').value.trim().replace(/\\/g,'/'));
+      else if(action==='file-shortcuts')await showFileShortcuts();
       else if(action==='file-search')await searchFiles();
-      else if(action==='file-select')await selectFile(Number(button.dataset.index));
-      else if(action==='file-manage')await selectFile(Number(button.dataset.index),true);
-      else if(action==='file-open'){if(state.selected?.is_dir){state.path=state.selected.path;await render();}}
-      else if(action==='file-restore'){await post('/api/suite/files/operation',{operation:'restore',root_id:state.rootId,receipt_id:state.trashReceipt});state.trashReceipt=null;toast('文件已恢复。');await render();}
+      else if(action==='file-select')await selectFile(Number(button.dataset.index),{toggle:event.ctrlKey||event.metaKey||!!event.target.closest('[data-file-checkbox]'),range:event.shiftKey});
+      else if(action==='file-manage')await selectFile(Number(button.dataset.index));
+      else if(action==='file-open')await openSelectedFile();
       else if(action.startsWith('file-'))await fileOperation(action);
       else if(action==='memory-search')await memorySearch();
       else if(action==='memory-forget'){const answer=await modal('遗忘这条记录','<p class="caption">这条记录将不再出现在正常搜索和最近记录中。</p>','遗忘');if(answer){await post('/api/suite/memory/forget',{id:button.dataset.id});toast('已标记为遗忘。');await render();}}
-      else if(['memory-start','memory-stop','qwen-start','qwen-stop','qwen-trigger'].includes(action)){const [component,verb]=action.split('-');const result=await post(`/api/suite/${component}/${verb}`);toast(result.detail||result.dependency_reason||'操作完成，已更新状态。',result.status==='needs_setup'||result.status==='failed');await render();}
+      else if(['memory-start','memory-stop','qwen-start','qwen-stop','qwen-trigger'].includes(action)){const [component,verb]=action.split('-');const result=await post(`/api/suite/${component}/${verb}`);toast(component==='qwen'&&verb==='trigger'?(result.recording_verified&&result.recording?'已确认千问正在录音。':'触发请求已发送；请查看实际录音状态。'):(result.detail||result.dependency_reason||'操作完成，已更新状态。'),result.status==='needs_setup'||result.status==='failed');await render();}
       else if(action==='phone-mirror'||action==='phone-screenshot'){const serial=$('#phone-device').value;if(!serial){toast('请先选择已授权设备。',true);return;}if(action==='phone-mirror'){await post('/api/suite/phone/mirror',{serial,max_size:1280,max_fps:60,no_audio:true});toast('镜像启动请求已完成。');}else{const image=await post('/api/suite/phone/screenshot',{serial});if(!image.base64||!['image/png','image/jpeg'].includes(image.mime))throw new Error('设备没有返回可显示的截图。');$('#phone-screen').innerHTML=`<img alt="你主动截取的手机屏幕" src="data:${image.mime};base64,${escape(image.base64)}">`;}}
       else if(action==='phone-stop'){await post('/api/suite/phone/stop');toast('已停止工作台启动的镜像。');await render();}
       else if(action==='process-control')await processControl(button);
       else if(action==='component-control'){const result=await post(`/api/suite/components/${encodeURIComponent(button.dataset.id)}/${button.dataset.control}`);toast(result.reason||result.dependency_reason||'运行状态已更新。',result.state==='needs_setup'||result.state==='failed');await render();}
     });
   });
-  document.addEventListener('keydown',event=>{const row=event.target.closest('.file-row');if(row&&(event.key==='Enter'||event.key===' ')){event.preventDefault();busy(null,()=>selectFile(Number(row.dataset.index)));}});
+  let fileComposing=false,fileCompositionEnd=0;
+  document.addEventListener('compositionstart',()=>{fileComposing=true;});
+  document.addEventListener('compositionend',()=>{fileComposing=false;fileCompositionEnd=Date.now();});
+  $('#action-dialog form').addEventListener('submit',event=>{if(fileComposing||Date.now()-fileCompositionEnd<100)event.preventDefault();});
+  document.addEventListener('dblclick',event=>{const row=event.target.closest('.file-row');if(state.view==='files'&&row&&!event.target.closest('button,input')&&!fileComposing&&!state.fileBusy){event.preventDefault();busy(null,async()=>{await selectFile(Number(row.dataset.index));await openSelectedFile();});}});
+  document.addEventListener('keydown',event=>{
+    if(state.view!=='files'||state.fileBusy||fileComposing||event.isComposing||event.keyCode===229||event.defaultPrevented||$('#action-dialog').open)return;
+    const target=event.target;if(!(target instanceof Element)||target.closest('input,textarea,select,[contenteditable=""],[contenteditable="true"],[role="textbox"]'))return;
+    if(!target.closest('#file-workbench,#file-undo')&&target!==document.body)return;
+    const key=event.key,ctrl=event.ctrlKey||event.metaKey;let operation=null;
+    if(event.altKey&&!ctrl){if(key==='ArrowLeft')operation=()=>fileNavigate('back');else if(key==='ArrowRight')operation=()=>fileNavigate('forward');else if(key==='ArrowUp')operation=()=>fileNavigate('up');}
+    else if(ctrl&&!event.altKey){
+      if(key.toLowerCase()==='c'&&!window.getSelection()?.toString())operation=()=>fileOperation('file-copy');
+      else if(key.toLowerCase()==='x'&&!window.getSelection()?.toString())operation=()=>fileOperation('file-cut');
+      else if(key.toLowerCase()==='v')operation=()=>fileOperation('file-paste');
+      else if(key.toLowerCase()==='a')operation=()=>selectAllFiles();
+      else if(key.toLowerCase()==='f')operation=()=>{$('#file-search')?.focus();$('#file-search')?.select();};
+      else if(key.toLowerCase()==='l')operation=()=>{$('#file-path')?.focus();$('#file-path')?.select();};
+      else if(key.toLowerCase()==='z'&&state.trashReceipts.length)operation=()=>fileOperation('file-restore');
+      else if(key.toLowerCase()==='n'&&event.shiftKey)operation=()=>fileOperation('file-mkdir');
+    } else if(!event.altKey){
+      if(['ArrowUp','ArrowDown','Home','End'].includes(key)){const index=key==='Home'?0:key==='End'?state.files.length-1:state.fileFocus<0?(key==='ArrowUp'?state.files.length-1:0):Math.max(0,Math.min(state.files.length-1,state.fileFocus+(key==='ArrowDown'?1:-1)));operation=()=>selectFile(index,{range:event.shiftKey});}
+      else if(key==='F2')operation=()=>fileOperation('file-rename');
+      else if(key==='Delete')operation=()=>fileOperation('file-trash');
+      else if(key==='Backspace')operation=()=>fileNavigate('up');
+      else if(key==='F5')operation=()=>render();
+      else if(key==='Escape')operation=()=>{selectAllFiles(false);};
+      else if(key===' '&&target.closest('.file-row'))operation=()=>selectFile(Number(target.closest('.file-row').dataset.index),{toggle:true});
+      else if(key==='Enter'&&Date.now()-fileCompositionEnd>100&&!target.closest('button,a'))operation=openSelectedFile;
+    }
+    if(operation){event.preventDefault();if(event.repeat&&['Delete','F2','Enter'].includes(key))return;busy(null,operation);}
+  });
   $('#refresh-button').addEventListener('click',()=>render());
   window.addEventListener('hashchange',()=>navigate(location.hash.slice(1)));
   async function init() {

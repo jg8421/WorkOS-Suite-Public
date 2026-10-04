@@ -14,6 +14,9 @@ import re
 import shutil
 import sqlite3
 import stat
+import struct
+import subprocess
+import sys
 import threading
 import time
 import uuid
@@ -23,11 +26,104 @@ import zipfile
 MAX_PREVIEW_BYTES=20_000_000
 MAX_TREE_BYTES=512_000_000
 MAX_TREE_ENTRIES=10_000
+MAX_SEARCH_ENTRIES=5_000
+MAX_SEARCH_RESULTS=200
+MAX_SEARCH_SECONDS=5.0
+MAX_SEARCH_FILE_BYTES=8_000_000
+MAX_SEARCH_READ_BYTES=20_000_000
+SEARCH_TEXT_SUFFIXES=frozenset(('.txt','.md','.csv','.tsv','.json','.log','.xml','.html','.htm','.py','.js','.css'))
+SEARCH_DOCUMENT_SUFFIXES=frozenset(('.pdf','.docx','.pptx','.xlsx'))
 CLOUD_TAGS=frozenset(0x9000001A+(n<<12) for n in range(16))
 
 
 class FileConflict(ValueError):
     status_code=409
+
+
+def _clipboard_payload(paths):
+    # DROPFILES is five DWORD-sized fields, followed by a double-NUL Unicode list.
+    return struct.pack('<IiiII',20,0,0,0,1)+('\0'.join(paths)+'\0\0').encode('utf-16le')
+
+
+def _write_system_clipboard(paths,mode):
+    if os.name!='nt':raise ValueError('系统文件剪贴板需要 Windows；工作台内仍可复制或移动文件')
+    import ctypes
+    from ctypes import wintypes
+    user=ctypes.WinDLL('user32',use_last_error=True);kernel=ctypes.WinDLL('kernel32',use_last_error=True)
+    user.CreateWindowExW.argtypes=[wintypes.DWORD,wintypes.LPCWSTR,wintypes.LPCWSTR,wintypes.DWORD,
+        ctypes.c_int,ctypes.c_int,ctypes.c_int,ctypes.c_int,wintypes.HWND,wintypes.HMENU,wintypes.HINSTANCE,ctypes.c_void_p]
+    user.CreateWindowExW.restype=wintypes.HWND
+    user.DestroyWindow.argtypes=[wintypes.HWND];user.DestroyWindow.restype=wintypes.BOOL
+    user.OpenClipboard.argtypes=[wintypes.HWND];user.OpenClipboard.restype=wintypes.BOOL
+    user.EmptyClipboard.argtypes=[];user.EmptyClipboard.restype=wintypes.BOOL
+    user.CloseClipboard.argtypes=[];user.CloseClipboard.restype=wintypes.BOOL
+    user.SetClipboardData.argtypes=[wintypes.UINT,wintypes.HANDLE];user.SetClipboardData.restype=wintypes.HANDLE
+    user.RegisterClipboardFormatW.argtypes=[wintypes.LPCWSTR];user.RegisterClipboardFormatW.restype=wintypes.UINT
+    kernel.GlobalAlloc.argtypes=[wintypes.UINT,ctypes.c_size_t];kernel.GlobalAlloc.restype=wintypes.HGLOBAL
+    kernel.GlobalLock.argtypes=[wintypes.HGLOBAL];kernel.GlobalLock.restype=ctypes.c_void_p
+    kernel.GlobalUnlock.argtypes=[wintypes.HGLOBAL];kernel.GlobalUnlock.restype=wintypes.BOOL
+    kernel.GlobalFree.argtypes=[wintypes.HGLOBAL];kernel.GlobalFree.restype=wintypes.HGLOBAL
+    window=user.CreateWindowExW(0,'STATIC','WorkOS Suite Clipboard',0,0,0,0,0,ctypes.c_void_p(-3),None,None,None)
+    if not window:raise ValueError('系统剪贴板窗口未就绪，请重试')
+    opened=False
+    def publish(format_id,body):
+        handle=kernel.GlobalAlloc(0x42,len(body))
+        if not handle:raise ValueError('系统剪贴板内存不足，请重试')
+        transferred=False
+        try:
+            pointer=kernel.GlobalLock(handle)
+            if not pointer:raise ValueError('系统剪贴板内存未就绪，请重试')
+            try:ctypes.memmove(pointer,body,len(body))
+            finally:kernel.GlobalUnlock(handle)
+            if not user.SetClipboardData(format_id,handle):raise ValueError('系统文件剪贴板未写入，请重试')
+            transferred=True
+        finally:
+            if not transferred:kernel.GlobalFree(handle)
+    try:
+        for attempt in range(8):
+            if user.OpenClipboard(window):opened=True;break
+            time.sleep(.04)
+        if not opened:raise FileConflict('系统剪贴板被其他应用占用，请稍后重试')
+        effect=user.RegisterClipboardFormatW('Preferred DropEffect')
+        if not effect or not user.EmptyClipboard():raise ValueError('系统剪贴板未就绪，请重试')
+        publish(15,_clipboard_payload(paths))
+        publish(effect,struct.pack('<I',2 if mode=='cut' else 1))
+    finally:
+        if opened:user.CloseClipboard()
+        user.DestroyWindow(window)
+
+
+def _open_system_path(path):
+    if os.name!='nt':raise ValueError('用原应用打开需要 Windows，请下载原文件查看')
+    try:os.startfile(str(path))
+    except OSError:raise ValueError('原应用未能打开，请检查文件关联或本机应用') from None
+
+
+def _search_document_text(root,target,timeout):
+    # Parse complex documents in an owned disposable process so a damaged PDF
+    # cannot keep a request running beyond the remaining search budget.
+    # -I deliberately ignores caller/PYTHONPATH directories. Only this shipped
+    # module's reviewed component vendor is added, never a registered user root.
+    code="import importlib.util,json,sys;from pathlib import Path;module=Path(sys.argv[1]).resolve();vendor=module.parents[1]/'components'/'workos'/'vendor';sys.path.insert(0,str(vendor)) if vendor.is_dir() else None;s=importlib.util.spec_from_file_location('suite_file_extract',module);m=importlib.util.module_from_spec(s);s.loader.exec_module(m);p=m._plain(Path(sys.argv[2]),Path(sys.argv[3]));r=m.FileService.__new__(m.FileService);r.resolve=lambda *a:p;v=r.preview('',str(p));sys.stdout.write(json.dumps({'text':(v.get('content','')+'\\n'+'\\n'.join(' '.join(str(c) for c in row) for row in v.get('rows',[])))[:100000]}))"
+    options={'stdin':subprocess.DEVNULL,'stdout':subprocess.PIPE,'stderr':subprocess.DEVNULL,
+             'cwd':str(Path(__file__).resolve().parents[1])}
+    if os.name=='nt':options['creationflags']=subprocess.CREATE_NO_WINDOW
+    process=subprocess.Popen((sys.executable,'-I','-B','-c',code,str(Path(__file__).resolve()),str(root),str(target)),**options)
+    try:
+        output,_=process.communicate(timeout=max(.01,timeout))
+        if process.returncode or len(output)>500_000:return ''
+        value=json.loads(output)
+        return value.get('text','') if isinstance(value,dict) and isinstance(value.get('text'),str) else ''
+    except subprocess.TimeoutExpired:
+        if os.name=='nt' and process.poll() is None:
+            taskkill=Path(os.environ.get('SystemRoot',r'C:\Windows'))/'System32'/'taskkill.exe'
+            try:subprocess.run((str(taskkill),'/PID',str(process.pid),'/T','/F'),stdin=subprocess.DEVNULL,
+                    stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=3,creationflags=subprocess.CREATE_NO_WINDOW)
+            except (OSError,subprocess.TimeoutExpired):pass
+        if process.poll() is None:process.kill()
+        process.communicate(timeout=3)
+        raise TimeoutError('文档提取达到搜索时间限制') from None
+    except (ValueError,OSError):return ''
 
 
 def _linked(path):
@@ -106,6 +202,7 @@ class FileService:
         self.data_dir=Path(data_dir).resolve();self.data_dir.mkdir(parents=True,exist_ok=True)
         self.recycle=self.data_dir/'recycle';self.recycle.mkdir(exist_ok=True)
         self._lock=threading.RLock()
+        self._search_slots=threading.BoundedSemaphore(2)
         self._db=sqlite3.connect(self.data_dir/'files.sqlite3',check_same_thread=False)
         self._db.execute('PRAGMA journal_mode=WAL')
         self._db.execute('CREATE TABLE IF NOT EXISTS roots(id TEXT PRIMARY KEY,path TEXT UNIQUE,label TEXT)')
@@ -159,6 +256,89 @@ class FileService:
             except (ValueError,OSError):continue
         return {'root_id':root_id,'path':relative,'parent':relative.rsplit('/',1)[0] if '/' in relative else '',
                 'entries':sorted(entries,key=lambda e:(not e['is_dir'],e['name'].casefold()))}
+
+    def search(self,root_id,path='',q=''):
+        relative=_relative(path);root=self._root(root_id);folder=self.resolve(root_id,relative)
+        if not folder.is_dir():raise ValueError('请选择文件夹')
+        if not isinstance(q,str) or not q.strip() or len(q)>200:raise ValueError('请输入 1 至 200 字的搜索内容')
+        if not self._search_slots.acquire(blocking=False):raise FileConflict('已有搜索正在进行，请稍后重试')
+        started=time.monotonic();deadline=started+MAX_SEARCH_SECONDS;needle=q.strip().casefold()
+        entries=[];candidates=[];scanned=0;skipped=0;truncated=False;reason='';pending=[folder]
+        try:
+            while pending:
+                current=pending.pop()
+                try:iterator=os.scandir(current)
+                except OSError:skipped+=1;continue
+                with iterator:
+                    for node in iterator:
+                        if time.monotonic()>=deadline or scanned>=MAX_SEARCH_ENTRIES:
+                            truncated=True;reason='搜索达到时间或文件数量上限';break
+                        scanned+=1;item=Path(node.path)
+                        try:
+                            target=_plain(root,item);info=target.stat();is_dir=target.is_dir()
+                            entry={'name':target.name,'path':target.relative_to(root).as_posix(),'is_dir':is_dir,
+                                'size':info.st_size if not is_dir else 0,'modified':info.st_mtime,
+                                'mime':mimetypes.guess_type(target.name)[0] or 'application/octet-stream'}
+                            if is_dir:pending.append(target)
+                            if needle in target.name.casefold():entries.append({**entry,'match':'name'})
+                            elif not is_dir and target.suffix.casefold() in SEARCH_TEXT_SUFFIXES|SEARCH_DOCUMENT_SUFFIXES:
+                                if info.st_size<=MAX_SEARCH_FILE_BYTES:candidates.append((target,entry))
+                                else:skipped+=1
+                            if len(entries)>=MAX_SEARCH_RESULTS:
+                                truncated=True;reason='搜索达到 200 条结果上限';break
+                        except (ValueError,OSError):skipped+=1
+                if truncated:break
+            read_bytes=0
+            if not truncated:
+                for target,entry in candidates:
+                    remaining=deadline-time.monotonic()
+                    if remaining<=0 or read_bytes+entry['size']>MAX_SEARCH_READ_BYTES:
+                        truncated=True;reason='内容搜索达到时间或读取量上限';break
+                    read_bytes+=entry['size']
+                    try:
+                        target=_plain(root,target)
+                        if target.suffix.casefold() in SEARCH_TEXT_SUFFIXES:
+                            with target.open('rb') as stream:raw=stream.read(400_000)
+                            try:text=raw.decode('utf-8-sig')
+                            except UnicodeDecodeError:
+                                try:text=raw.decode('gb18030')
+                                except UnicodeDecodeError:text=raw.decode('utf-8',errors='replace')
+                        else:text=_search_document_text(root,target,min(1.5,remaining))
+                        position=text.casefold().find(needle)
+                        if position>=0:entries.append({**entry,'match':'content','snippet':text[max(0,position-60):position+len(q)+120]})
+                        if len(entries)>=MAX_SEARCH_RESULTS:
+                            truncated=True;reason='搜索达到 200 条结果上限';break
+                    except TimeoutError:
+                        skipped+=1;truncated=True;reason='部分文档提取达到时限，搜索结果不完整'
+                    except (ValueError,OSError):skipped+=1
+            return {'root_id':root_id,'path':relative,'parent':relative.rsplit('/',1)[0] if '/' in relative else '',
+                'entries':sorted(entries,key=lambda e:(not e['is_dir'],e['name'].casefold(),e['path'])),
+                'query':q.strip(),'truncated':truncated,'scanned':scanned,'matched':len(entries),'skipped':skipped,
+                'reason':reason,'elapsed_ms':round((time.monotonic()-started)*1000),
+                'detail':'递归搜索文件名与可提取内容；内容仅查看受限片段，不做 OCR 或完整资料覆盖判断'}
+        finally:self._search_slots.release()
+
+    def clipboard(self,body):
+        if not isinstance(body,dict) or set(body)-{'root_id','paths','mode'}:raise ValueError('文件剪贴板参数无效')
+        paths=body.get('paths');mode=body.get('mode','copy')
+        if mode not in ('copy','cut') or not isinstance(paths,list) or not 1<=len(paths)<=200:raise ValueError('请选择 1 至 200 个文件或文件夹')
+        resolved=[]
+        for value in paths:
+            relative=_relative(value)
+            if not relative:raise ValueError('请选择文件或子文件夹，不能复制登记目录本身')
+            target=self.resolve(body.get('root_id'),relative)
+            if not target.is_file() and not target.is_dir():raise ValueError('不支持此文件类型')
+            if target not in resolved:resolved.append(target)
+        _write_system_clipboard([str(path) for path in resolved],mode)
+        return {'system_clipboard':True,'count':len(resolved),'mode':mode,
+            'detail':'已写入 Windows 文件剪贴板，可在 Explorer、微信或其他支持文件粘贴的应用中使用'}
+
+    def open(self,body):
+        if not isinstance(body,dict) or set(body)-{'root_id','path'} or 'path' not in body:raise ValueError('打开文件参数无效')
+        target=self.resolve(body.get('root_id'),body['path'])
+        if not target.is_file() and not target.is_dir():raise ValueError('不支持此文件类型')
+        _open_system_path(target)
+        return {'opened':True,'name':target.name,'is_dir':target.is_dir()}
 
     @staticmethod
     def _zip(path):

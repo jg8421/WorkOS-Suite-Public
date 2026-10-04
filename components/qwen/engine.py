@@ -138,6 +138,8 @@ def tail_log(n: int = 200) -> list[str]:
 # 音频会话：哪个进程正在占用麦克风
 # --------------------------------------------------------------------------
 _com_tls = threading.local()
+_audio_errors: dict[int, str] = {}
+_audio_error_lock = threading.Lock()
 
 
 def ensure_com() -> None:
@@ -157,32 +159,51 @@ def ensure_com() -> None:
     _com_tls.ready = True
 
 
-def capture_sessions() -> dict[str, str]:
-    """返回 {进程名小写: 状态}。同名进程取「更活跃」的状态。"""
+def _audio_sessions(data_flow: int) -> dict[str, str]:
+    """Read sessions on every active endpoint, including meeting headsets."""
     ensure_com()
     result: dict[str, str] = {}
+    failures: list[str] = []
     try:
-        mic = AudioUtilities.GetMicrophone()
-        iface = mic.Activate(IAudioSessionManager2._iid_, CLSCTX_ALL, None)
-        mgr = iface.QueryInterface(IAudioSessionManager2)
-        enum = mgr.GetSessionEnumerator()
-        for i in range(enum.GetCount()):
-            ctl = enum.GetSession(i).QueryInterface(IAudioSessionControl2)
-            pid = ctl.GetProcessId()
-            state = {0: "Inactive", 1: "Active", 2: "Expired"}.get(
-                ctl.GetState(), "Unknown")
-            if pid == 0:
-                name = "system"
-            else:
-                try:
-                    name = (psutil.Process(pid).name() or "").lower()
-                except Exception:
-                    name = f"pid{pid}"
-            if result.get(name) != "Active":
-                result[name] = state
+        # EDataFlow: render=0/capture=1; DEVICE_STATE_ACTIVE=1.
+        devices = AudioUtilities.GetDeviceEnumerator().EnumAudioEndpoints(data_flow, 1)
+        for device_index in range(devices.GetCount()):
+            try:
+                device = devices.Item(device_index)
+                iface = device.Activate(IAudioSessionManager2._iid_, CLSCTX_ALL, None)
+                enum = iface.QueryInterface(IAudioSessionManager2).GetSessionEnumerator()
+                for i in range(enum.GetCount()):
+                    ctl = enum.GetSession(i).QueryInterface(IAudioSessionControl2)
+                    pid = ctl.GetProcessId()
+                    state = {0: "Inactive", 1: "Active", 2: "Expired"}.get(ctl.GetState(), "Unknown")
+                    try:
+                        name = (psutil.Process(pid).name() or "").lower() if pid else "system"
+                    except Exception:
+                        name = f"pid{pid}"
+                    if result.get(name) != "Active":
+                        result[name] = state
+            except Exception as error:
+                failures.append(type(error).__name__)
     except Exception as e:
-        log(f"[warn] 枚举采集会话失败: {type(e).__name__}: {e}")
+        failures.append(type(e).__name__)
+    message = ''
+    if failures:
+        label = '麦克风' if data_flow == 1 else '扬声器'
+        message = f'{label}会话读取未完成，请检查音频设备和系统权限（{failures[0]}）'
+    with _audio_error_lock:
+        previous = _audio_errors.get(data_flow, '')
+        if message:
+            _audio_errors[data_flow] = message
+        else:
+            _audio_errors.pop(data_flow, None)
+    if message and message != previous:
+        log('[warn] ' + message)
     return result
+
+
+def capture_sessions() -> dict[str, str]:
+    """All active microphones, keeping the most active state per process."""
+    return _audio_sessions(1)
 
 
 def _pid_alive(pid: int) -> bool:
@@ -193,26 +214,8 @@ def _pid_alive(pid: int) -> bool:
 
 
 def render_sessions() -> dict[str, str]:
-    """默认扬声器上「谁在出声」。用来区分"通话"和"只是用麦克风"。"""
-    ensure_com()
-    out: dict[str, str] = {}
-    try:
-        for s in AudioUtilities.GetAllSessions():
-            pid = s.ProcessId
-            if not pid:
-                n = "system"
-            else:
-                try:
-                    n = (psutil.Process(pid).name() or "").lower()
-                except Exception:
-                    n = f"pid{pid}"
-            st = {0: "Inactive", 1: "Active", 2: "Expired"}.get(
-                s.State, "Unknown")
-            if out.get(n) != "Active":
-                out[n] = st
-    except Exception as e:
-        log(f"[warn] 枚举回放会话失败: {type(e).__name__}: {e}")
-    return out
+    """Playback across active speakers and headsets, without capturing sound."""
+    return _audio_sessions(0)
 
 
 def is_excluded_process(proc: str, cfg: dict) -> bool:
@@ -261,18 +264,16 @@ def detect_active_calls(cfg: dict, sessions: dict[str, str],
     for key, spec in cfg["apps"].items():
         if not spec.get("enabled"):
             continue
-        for proc in spec["processes"]:
-            p = proc.lower()
-            if is_excluded_process(p, cfg):
-                continue                     # 输入法一律不算
-            if sessions.get(p) != "Active":
-                continue                     # 没在用麦克风
-            if require_pb:
-                since = render_since.get(p)
-                if since is None or (now - since) < min_pb:
-                    continue                 # 没有持续回放 -> 不是通话
-            active.append(key)
-            break
+        processes = [str(p).lower() for p in spec.get("processes", [])
+                     if not is_excluded_process(str(p), cfg)]
+        if not any(sessions.get(p) == "Active" for p in processes):
+            continue                         # 没在用麦克风
+        if require_pb and not any(
+            render.get(p) == "Active" and render_since.get(p) is not None
+            and now - render_since[p] >= min_pb for p in processes
+        ):
+            continue                         # 同一应用必须有当前且持续的回放
+        active.append(key)
     return active
 
 
@@ -482,8 +483,10 @@ def ensure_qianwen(cfg: dict, wait_ready: float | None = None) -> bool:
 def trigger_with_launch(cfg: dict) -> bool:
     """需要的话先拉起千问，再发录音快捷键。"""
     if not ensure_qianwen(cfg):
-        return False
-    return trigger(cfg)
+        raise RuntimeError('千问客户端未能就绪，请安装并登录后重试')
+    if not trigger(cfg):
+        raise ValueError('录音触发方式无效，请检查快捷键设置')
+    return True
 
 
 def trigger(cfg: dict) -> bool:
@@ -738,6 +741,7 @@ class Watcher:
             self.last_trigger_at = time.time()
             self.last_app = "manual"
             self.trigger_count += 1
+            self.last_error = ""
             save_state({"last_trigger_at": self.last_trigger_at,
                         "last_app": self.last_app,
                         "trigger_count": self.trigger_count})
@@ -761,6 +765,7 @@ class Watcher:
                 "trigger_count": self.trigger_count,
                 "uptime_sec": round(uptime, 1),
                 "last_error": self.last_error,
+                "audio_errors": dict(_audio_errors),
                 "hotkey": self.cfg["trigger"].get("hotkey", ""),
                 "cooldown_sec": self.cfg.get("retrigger_cooldown_sec", 30),
                 "apps": [
@@ -793,11 +798,17 @@ class Watcher:
 
         def worker():
             time.sleep(delay)
+            if self._stop.is_set() or self.paused:
+                return
             try:
                 if recorder_is_recording(self.cfg, capture_sessions()):
                     log(f"[verify] {app}: 千问已开始录音 ✓（第 {attempt} 次尝试）")
+                    self.last_error = ""
+                    self._notify()
                     return
                 if attempt < max_attempt:
+                    if self._stop.is_set() or self.paused:
+                        return
                     log(f"[verify] 第 {attempt} 次未生效，{delay:.0f} 秒后重试…")
                     try:
                         trigger(self.cfg)
@@ -806,9 +817,11 @@ class Watcher:
                         return
                     self._verify_soon(app, attempt + 1)
                 else:
+                    self.last_error = '快捷键已发送，但千问未确认录音；请检查客户端登录和录音快捷键'
                     log(f"[verify] ⚠ 试了 {attempt} 次，千问仍未开始录音 —— "
                         f"请确认千问里录音快捷键确实是 {hotkey}，"
                         f"以及千问是否处于已登录状态")
+                    self._notify()
             except Exception as e:
                 log(f"[verify] 校验异常: {type(e).__name__}: {e}")
 
@@ -840,6 +853,9 @@ class Watcher:
         # 回放活动：谁在出声。用于把"通话"和"只用麦克风（语音输入）"分开
         need_pb = self.cfg.get("require_playback", True)
         render = render_sessions() if need_pb else {}
+        for _p in list(self._render_since):
+            if render.get(_p) != "Active":
+                self._render_since.pop(_p, None)
         for _p, _st in render.items():
             if _st == "Active":
                 self._render_since.setdefault(_p, now_t)   # 记住连续起点
@@ -899,6 +915,7 @@ class Watcher:
                 self.last_trigger_at = time.time()
                 self.last_app = app
                 self.trigger_count += 1
+                self.last_error = ""
                 save_state({"last_trigger_at": self.last_trigger_at,
                             "last_app": app,
                             "trigger_count": self.trigger_count})
@@ -922,13 +939,24 @@ class Watcher:
         self._notify()
 
 
-def detect_once(cfg: dict | None = None) -> dict:
+def detect_once(cfg: dict | None = None, *,
+                render_since: dict[str, float] | None = None) -> dict:
     cfg = cfg or load_config()
     sess = capture_sessions()
+    render = render_sessions()
     run = processes_running()
+    now = time.time()
+    candidate_cfg = dict(cfg, min_playback_sec=0)
+    candidates = detect_active_calls(candidate_cfg, sess, render,
+        {p: now for p, state in render.items() if state == "Active"}, now)
     return {
         "recording": recorder_is_recording(cfg, sess),
-        "active_calls": detect_active_calls(cfg, sess, run),
+        "active_calls": detect_active_calls(cfg, sess, render, render_since, now),
+        "candidate_calls": candidates,
+        "observation_only": render_since is None and bool(cfg.get("require_playback", True)),
         "sessions": sess,
+        "render": render,
         "running": run,
+        "audio_errors": dict(_audio_errors),
+        "device_scope": "all_active_endpoints",
     }

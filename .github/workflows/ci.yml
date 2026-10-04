@@ -34,3 +34,4 @@ jobs:
       - run: npm install --no-save --ignore-scripts playwright
       - run: npx playwright install chromium
       - run: node tests/browser_suite.cjs
+      - run: node tests/browser_file_keyboard.cjs

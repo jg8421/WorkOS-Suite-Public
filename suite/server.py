@@ -25,6 +25,7 @@ from .adapters import NativeAdapters
 from .core import CoreProxy
 from .files import FileService
 from .ideas import IdeaStore
+from .native_tools import NativeTools
 from .processes import ProcessService
 from .runtime import RuntimeManager
 
@@ -55,8 +56,10 @@ class Application:
         self.runtime = RuntimeManager(self.data/'runtime')
         self.ideas = IdeaStore(self.data)
         self.files = FileService(self.data, default_roots=[] if empty_roots or isolated else default_roots())
+        self.native_tools = NativeTools(APP)
         node = APP.parent/'runtime'/'node'/'node.exe'
-        self.adapters = NativeAdapters(APP/'components',self.data,self.runtime,node_path=str(node) if node.is_file() else None)
+        self.adapters = NativeAdapters(APP/'components',self.data,self.runtime,node_path=str(node) if node.is_file() else None,qwen_external=not isolated)
+        self.adapters.restore_qwen()
         self.core = CoreProxy(APP,self.data,self.runtime,isolated=isolated)
         self.processes = ProcessService(protected_pids=self.runtime.protected_pids)
         try: self.repositories = json.loads((APP/'repositories.json').read_text(encoding='utf-8'))
@@ -102,7 +105,7 @@ class Application:
             if self.runtime.status('workos')['owned']:
                 try:self.core.json('POST','/api/shutdown',{},timeout=3)
                 except (ValueError,OSError):logging.warning('Owned WorkOS graceful shutdown unavailable; completing owned-process cleanup')
-            self.adapters.close();self.runtime.close();self.ideas.close();self.files.close()
+            self.native_tools.close();self.adapters.close();self.runtime.close();self.ideas.close();self.files.close()
 
 
 class LocalServer(ThreadingHTTPServer):
@@ -197,9 +200,13 @@ class Handler(BaseHTTPRequestHandler):
             if path=='/api/suite/components':return self.response({'components':self.app.components(),'events':self.app.runtime.events()})
             if path=='/api/suite/ideas':return self.response(self.app.ideas.list())
             if path=='/api/suite/roots':return self.response({'roots':self.app.files.roots()})
-            if path in ('/api/suite/files','/api/suite/file-preview','/api/suite/file'):
+            if path=='/api/suite/native-tools':
+                if query:raise ValueError('原版工具检查不接受参数')
+                return self.response(self.app.native_tools.describe())
+            if path in ('/api/suite/files','/api/suite/files/search','/api/suite/file-preview','/api/suite/file'):
                 if set(query)-{'root_id','path','q'}:raise ValueError('文件请求参数无效')
                 root=query.get('root_id');relative=query.get('path','')
+                if path.endswith('/search'):return self.response(self.app.files.search(root,relative,query.get('q','')))
                 if path.endswith('/files'):return self.response(self.app.files.list(root,relative,query.get('q','')))
                 if path.endswith('file-preview'):return self.response(self.app.files.preview(root,relative))
                 file=self.app.files.resolve(root,relative)
@@ -238,7 +245,11 @@ class Handler(BaseHTTPRequestHandler):
                 if set(body)-{'path','label'}:raise ValueError('目录参数无效')
                 return self.response(self.app.files.add_root(body.get('path'),body.get('label','')),201)
             if path=='/api/suite/files/operation':return self.response(self.app.files.operation(body))
+            if path=='/api/suite/files/clipboard':return self.response(self.app.files.clipboard(body))
+            if path=='/api/suite/files/open':return self.response(self.app.files.open(body))
             if path=='/api/suite/files/import':return self.response(self.app.ideas.import_files(body,self.app.files,self.app.core))
+            match=re.fullmatch(r'/api/suite/native-tools/(files|processes)/launch',path)
+            if match:return self.response(self.app.native_tools.launch(match[1],body))
             if path=='/api/suite/processes/control':return self.response(self.app.processes.control(body))
             match=re.fullmatch(r'/api/suite/components/([a-z-]+)/([a-z]+)',path)
             if match:
