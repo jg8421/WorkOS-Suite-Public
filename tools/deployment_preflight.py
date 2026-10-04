@@ -57,7 +57,27 @@ def _open(url):
     webbrowser.open(url)
 
 
-def start(data_dir=None, *, port=18880, isolated=False, empty_roots=False, open_browser=True):
+def deployment_profile(data, profile=None):
+    path = Path(profile) if profile else data / 'deployment.json'
+    if not path.exists():
+        if profile:
+            raise ValueError('启动配置文件不存在')
+        return {}
+    if path.stat().st_size > 16384:
+        raise ValueError('启动配置文件过大')
+    try:
+        settings = json.loads(path.read_text(encoding='utf-8-sig'))
+        if not isinstance(settings, dict) or set(settings) - {'core_data_dir', 'sync_root', 'remote_config'}:
+            raise ValueError()
+        if any(not isinstance(value, str) or not value or not Path(value).is_absolute() for value in settings.values()):
+            raise ValueError()
+    except (ValueError, OSError):
+        raise ValueError('启动配置格式不正确：只接受研究数据、同步目录和公网配置的绝对路径') from None
+    return settings
+
+
+def start(data_dir=None, *, port=18880, isolated=False, empty_roots=False, open_browser=True,
+          core_data_dir=None, sync_root=None, remote_config=None, profile=None):
     """Reuse only an identified Suite; never stop or adopt an unrelated listener."""
     report=readiness()
     if not report['core_ready']:raise ValueError('完整套件依赖缺失，请重新解压安装包并运行环境检查')
@@ -72,12 +92,20 @@ def start(data_dir=None, *, port=18880, isolated=False, empty_roots=False, open_
     except OSError:raise ValueError('套件端口被其他应用占用；不会结束其他应用，请关闭冲突应用后重试')
     data=Path(data_dir or Path(os.environ.get('LOCALAPPDATA',str(Path.home())))/'WorkOS-Suite').resolve()
     data.mkdir(parents=True,exist_ok=True)
+    settings = {} if isolated else deployment_profile(data, profile)
+    for key, value in [('core_data_dir', core_data_dir), ('sync_root', sync_root), ('remote_config', remote_config)]:
+        if value is not None:
+            if not Path(value).is_absolute():
+                raise ValueError('启动配置必须使用绝对路径')
+            settings[key] = str(value)
     environment=dict(os.environ)
     environment['PATH']=str(PACKAGE/'runtime/node')+os.pathsep+environment.get('PATH','')
     code="import sys,runpy;sys.path.insert(0,sys.argv.pop(1));runpy.run_module('suite.server',run_name='__main__')"
     command=[sys.executable,'-I','-B','-c',code,str(APP),'--port',str(port),'--data-dir',str(data)]
     if isolated:command.append('--isolated')
     if empty_roots:command.append('--empty-roots')
+    for key, value in settings.items():
+        command += ['--' + key.replace('_', '-'), value]
     log=data/'suite-launch.log'
     with log.open('ab') as output:
         options={'cwd':str(APP),'env':environment,'stdin':subprocess.DEVNULL,'stdout':output,'stderr':subprocess.STDOUT}
@@ -123,8 +151,10 @@ def stop(*,port=18880):
 if __name__=='__main__':
     parser=argparse.ArgumentParser();mode=parser.add_mutually_exclusive_group();mode.add_argument('--start',action='store_true');mode.add_argument('--stop',action='store_true');parser.add_argument('--port',type=int,default=18880)
     parser.add_argument('--data-dir',type=Path);parser.add_argument('--isolated',action='store_true');parser.add_argument('--empty-roots',action='store_true');parser.add_argument('--no-browser',action='store_true')
+    parser.add_argument('--core-data-dir', type=Path);parser.add_argument('--sync-root', type=Path);parser.add_argument('--remote-config', type=Path);parser.add_argument('--profile', type=Path)
     args=parser.parse_args()
     try:
-        result=start(args.data_dir,port=args.port,isolated=args.isolated,empty_roots=args.empty_roots,open_browser=not args.no_browser) if args.start else stop(port=args.port) if args.stop else readiness()
+        result=start(args.data_dir,port=args.port,isolated=args.isolated,empty_roots=args.empty_roots,open_browser=not args.no_browser,
+                     core_data_dir=args.core_data_dir,sync_root=args.sync_root,remote_config=args.remote_config,profile=args.profile) if args.start else stop(port=args.port) if args.stop else readiness()
         print(json.dumps(result,ensure_ascii=False,indent=2))
     except ValueError as error:print(str(error));raise SystemExit(1)

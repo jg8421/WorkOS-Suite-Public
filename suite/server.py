@@ -27,6 +27,7 @@ from .files import FileService
 from .ideas import IdeaStore
 from .native_tools import NativeTools
 from .processes import ProcessService
+from .remote_access import RemoteAccess, LoginRequired, CsrfExpired, LoginChallengeExpired, TooManyLogins
 from .runtime import RuntimeManager
 
 MAX_BODY = 28_000_000
@@ -49,8 +50,16 @@ def default_roots():
 
 
 class Application:
-    def __init__(self, data_dir, port, *, isolated=False, empty_roots=False):
-        self.data = Path(data_dir).resolve();self.data.mkdir(parents=True,exist_ok=True)
+    def __init__(self, data_dir, port, *, isolated=False, empty_roots=False, remote_config=None, core_data_dir=None, sync_root=None):
+        self.data = Path(data_dir).resolve()
+        if core_data_dir is not None and not Path(core_data_dir).is_absolute():raise ValueError('研究数据文件夹必须是明确的本机绝对地址')
+        if sync_root is not None and not Path(sync_root).is_absolute():raise ValueError('同步文件夹必须是明确的本机绝对地址')
+        core_data = Path(core_data_dir).resolve() if core_data_dir is not None else self.data/'workos'
+        self.remote = RemoteAccess.from_config(remote_config,core_data/'authentication') if remote_config is not None else None
+        core_settings = {}
+        if self.remote:core_settings.update(WORKOS_PUBLIC_ORIGIN=self.remote.origin,WORKOS_PUBLIC_AUTH_MODE='password')
+        if sync_root is not None:core_settings['WORKOS_SYNC_ROOT']=str(Path(sync_root).resolve())
+        self.data.mkdir(parents=True,exist_ok=True)
         self.port = port
         self.csrf = secrets.token_urlsafe(40)
         self.runtime = RuntimeManager(self.data/'runtime')
@@ -59,8 +68,11 @@ class Application:
         self.native_tools = NativeTools(APP)
         node = APP.parent/'runtime'/'node'/'node.exe'
         self.adapters = NativeAdapters(APP/'components',self.data,self.runtime,node_path=str(node) if node.is_file() else None,qwen_external=not isolated)
+        try:self.core = CoreProxy(APP,self.data,self.runtime,isolated=isolated,core_data_dir=core_data_dir,core_settings=core_settings)
+        except Exception:
+            self.native_tools.close();self.adapters.close();self.runtime.close();self.ideas.close();self.files.close()
+            raise
         self.adapters.restore_qwen()
-        self.core = CoreProxy(APP,self.data,self.runtime,isolated=isolated)
         self.processes = ProcessService(protected_pids=self.runtime.protected_pids)
         try: self.repositories = json.loads((APP/'repositories.json').read_text(encoding='utf-8'))
         except (OSError,ValueError): self.repositories = []
@@ -105,7 +117,7 @@ class Application:
             if self.runtime.status('workos')['owned']:
                 try:self.core.json('POST','/api/shutdown',{},timeout=3)
                 except (ValueError,OSError):logging.warning('Owned WorkOS graceful shutdown unavailable; completing owned-process cleanup')
-            self.native_tools.close();self.adapters.close();self.runtime.close();self.ideas.close();self.files.close()
+            self.native_tools.close();self.adapters.close();self.runtime.close();self.core.close();self.ideas.close();self.files.close()
 
 
 class LocalServer(ThreadingHTTPServer):
@@ -121,27 +133,40 @@ class Handler(BaseHTTPRequestHandler):
         # URLs may contain a search term or document name; no access-body logging.
         logging.debug('HTTP %s',self.command)
 
-    def check_local(self, mutation=False, suite=False):
+    def check_local(self, mutation=False, suite=False, authenticate=True):
+        self.remote_origin='';self.password_session=None
         allowed={f'127.0.0.1:{self.app.port}',f'localhost:{self.app.port}'}
-        if self.client_address[0]!='127.0.0.1' or self.headers.get('Host','').lower() not in allowed:
+        if self.client_address[0]!='127.0.0.1':
             raise PermissionError('此工作台仅允许本机访问')
-        if any(self.headers.get(h) for h in ('Forwarded','X-Forwarded-For','X-Forwarded-Host','CF-Connecting-IP')):
-            raise PermissionError('本机工作台不接受隧道转发，请使用单独配置的 WorkOS 公网服务')
+        for name in ('Host','Origin','Cookie','X-CSRF-Token','X-Workspace'):
+            if len(self.headers.get_all(name,[]))>1:raise PermissionError('请求包含重复的访问校验字段')
+        host=self.headers.get('Host','').lower()
+        forwarded=any(self.headers.get(h) for h in ('Forwarded','X-Forwarded-For','X-Forwarded-Host','X-Forwarded-Proto','CF-Connecting-IP','CF-Ray','Cf-Access-Jwt-Assertion'))
         origin=self.headers.get('Origin')
-        origins={f'http://{host}' for host in allowed}
+        remote=getattr(self.app,'remote',None)
+        if forwarded or host not in allowed:
+            if not remote:raise PermissionError('套件公网访问尚未配置；本机入口不接受隧道转发')
+            if host!=remote.host:raise PermissionError('公网地址与套件配置不一致')
+            self.remote_origin=remote.origin
+            origins={remote.origin}
+            RemoteAccess.check_capability(self.command,urlsplit(self.path).path)
+        else:origins={f'http://{host}' for host in allowed}
         if origin and origin not in origins: raise PermissionError('请从本机工作台页面操作')
         if self.headers.get('Sec-Fetch-Site') in ('cross-site',):raise PermissionError('不接受跨站请求')
-        if mutation and origin not in origins:raise PermissionError('操作缺少本机页面来源，请刷新后重试')
-        if suite and mutation and not hmac.compare_digest(self.headers.get('X-CSRF-Token',''),self.app.csrf):
-            raise PermissionError('页面已更新，请刷新后重试；草稿仍保留')
+        if mutation and origin not in origins:raise PermissionError('操作缺少本站页面来源，请刷新后重试')
+        if self.remote_origin and authenticate:self.password_session=remote.session(self.headers.get('Cookie',''))
+        if mutation and authenticate and (suite or self.remote_origin):
+            expected=self.password_session['csrf'] if self.password_session else self.app.csrf
+            if not hmac.compare_digest(self.headers.get('X-CSRF-Token','').encode('utf-8'),expected.encode('utf-8')):
+                raise CsrfExpired('页面或会话已更新，请刷新后重试；草稿仍保留')
 
-    def json_body(self):
+    def json_body(self,limit=MAX_BODY):
         if self.headers.get('Transfer-Encoding'):raise ValueError('请求编码不支持')
         content_type=self.headers.get('Content-Type','').split(';',1)[0].strip().lower()
         if content_type!='application/json':raise ValueError('请以工作台的表单提交内容')
         try:length=int(self.headers.get('Content-Length','0'))
         except ValueError:raise ValueError('请求长度不正确') from None
-        if not 0<length<=MAX_BODY:raise ValueError('请求过大或没有内容')
+        if not 0<length<=limit:raise ValueError('请求过大或没有内容')
         raw=self.rfile.read(length)
         if len(raw)!=length:raise ValueError('请求未完整送达，请重试')
         try:body=json.loads(raw)
@@ -164,6 +189,13 @@ class Handler(BaseHTTPRequestHandler):
 
     def error(self, exc):
         if isinstance(exc,(BrokenPipeError,ConnectionResetError)):return
+        if isinstance(exc,LoginRequired):
+            if self.command in ('GET','HEAD') and not urlsplit(self.path).path.startswith('/api/'):
+                return self.response('',303,'text/plain; charset=utf-8',[('Location','/auth/login')])
+            return self.response({'error':str(exc),'code':'login_required','login_url':'/auth/login'},401)
+        if isinstance(exc,CsrfExpired):return self.response({'error':str(exc),'code':'csrf_expired'},403)
+        if isinstance(exc,LoginChallengeExpired):return self.response({'error':'登录挑战已过期，请重试','code':'login_challenge_expired'},409)
+        if isinstance(exc,TooManyLogins):return self.response({'error':str(exc)},429,headers=[('Retry-After','600')])
         if isinstance(exc,PermissionError):status,message=403,str(exc)
         elif isinstance(exc,FileNotFoundError):status,message=404,'文件或记录已不存在，请刷新后重试'
         elif isinstance(exc,ValueError):status,message=getattr(exc,'status_code',400),str(exc)
@@ -180,29 +212,37 @@ class Handler(BaseHTTPRequestHandler):
     def proxy(self, path, raw=None):
         if path.split('?',1)[0]=='/api/shutdown':
             raise PermissionError('请在原 WorkOS 服务中管理其关闭；退出套件只停止套件启动的组件')
-        status,headers,body=self.app.core.exchange(self.command,path,raw,dict(self.headers))
+        kwargs={'remote_origin':self.remote_origin} if self.remote_origin else {}
+        status,headers,body=self.app.core.exchange(self.command,path,raw,dict(self.headers),**kwargs)
         mime=next((value for key,value in headers if key.lower()=='content-type'),'application/octet-stream')
         forwarded=[(k,v) for k,v in headers if k.lower() in ('set-cookie','location','content-disposition')]
         self.response(body,status,mime,forwarded)
 
     def do_GET(self):
         try:
-            self.check_local()
             url=urlsplit(self.path);path=url.path
+            self.check_local(authenticate=path not in ('/auth/login','/auth/setup','/auth/challenge','/auth/ui.js'))
             query=parse_qs(url.query,keep_blank_values=True)
             if any(len(v)!=1 for v in query.values()):raise ValueError('同一参数不能重复')
             query={k:v[0] for k,v in query.items()}
+            if self.remote_origin and path.startswith('/auth/'):
+                data,mime,headers=self.app.remote.auth_get(path,(self.headers.get('CF-Connecting-IP') or self.client_address[0])[:64])
+                return self.response(data,mime=mime,headers=headers)
             if path=='/api/health':return self.response({'app':'workos-suite','version':__version__,'status':'ok'})
-            if path=='/api/suite/bootstrap':return self.response({'version':__version__,'csrf':self.app.csrf,
+            if path=='/api/suite/bootstrap':return self.response({'version':__version__,'csrf':self.password_session['csrf'] if self.password_session else self.app.csrf,
                 'components':self.app.components(),'roots':self.app.files.roots(),'repositories':self.app.repositories,
-                'capabilities':{'local_only':True,'modules':7,'capture_defaults_off':True,
+                'auth':{'public_login':bool(self.remote_origin)},
+                'capabilities':{'local_only':not bool(self.app.remote),'remote_access':bool(self.app.remote),'remote_request':bool(self.remote_origin),'host_controls':not bool(self.remote_origin),'modules':7,'capture_defaults_off':True,
                     'automatic_capture':any(self.app.adapters.get('memory','settings')['settings'].values())}})
             if path=='/api/suite/components':return self.response({'components':self.app.components(),'events':self.app.runtime.events()})
             if path=='/api/suite/ideas':return self.response(self.app.ideas.list())
             if path=='/api/suite/roots':return self.response({'roots':self.app.files.roots()})
             if path=='/api/suite/native-tools':
                 if query:raise ValueError('原版工具检查不接受参数')
-                return self.response(self.app.native_tools.describe())
+                result=self.app.native_tools.describe()
+                if self.remote_origin:
+                    for tool in result['tools']:tool.update(can_launch=False,reason='完整原版窗口只能在运行 Suite 的本机打开')
+                return self.response(result)
             if path in ('/api/suite/files','/api/suite/files/search','/api/suite/file-preview','/api/suite/file'):
                 if set(query)-{'root_id','path','q'}:raise ValueError('文件请求参数无效')
                 root=query.get('root_id');relative=query.get('path','')
@@ -219,7 +259,11 @@ class Handler(BaseHTTPRequestHandler):
             if path=='/api/suite/processes':return self.response(self.app.processes.list())
             if path=='/api/suite/recordings':return self.response(self.app.adapters.get('qwen','recordings'))
             match=re.fullmatch(r'/api/suite/(memory|qwen|phone)/([a-z-]+)',path)
-            if match:return self.response(self.app.adapters.get(*match.groups(),query))
+            if match:
+                result=self.app.adapters.get(*match.groups(),query)
+                if self.remote_origin and match.group(1)=='qwen':
+                    result.pop('panel_url',None);result.update(can_start=False,can_stop=False,can_trigger=False)
+                return self.response(result)
             if path.startswith('/api/suite/'):raise FileNotFoundError()
             if path.startswith('/api/') or path.startswith('/auth/') or path in CORE_ASSETS:return self.proxy(self.path)
             if path in ('/workos','/workos/'):return self.proxy('/')
@@ -236,7 +280,16 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         try:
             path=urlsplit(self.path).path
-            self.check_local(mutation=True,suite=path.startswith('/api/suite/'))
+            self.check_local(mutation=True,suite=path.startswith('/api/suite/'),authenticate=path not in ('/auth/login','/auth/setup'))
+            if self.remote_origin and path in ('/auth/login','/auth/logout'):
+                if path=='/auth/login':
+                    body,_=self.json_body(8192)
+                    data,headers=self.app.remote.login(body,self.headers,(self.headers.get('CF-Connecting-IP') or self.client_address[0])[:64])
+                else:
+                    body,_=self.json_body(8192)
+                    if body:raise ValueError('退出登录不接受额外参数')
+                    data,headers=self.app.remote.logout(self.headers.get('Cookie',''))
+                return self.response(data,headers=headers)
             body,raw=self.json_body()
             if path=='/api/suite/ideas':return self.response(self.app.ideas.add(body,self.app.core),201)
             match=re.fullmatch(r'/api/suite/ideas/([a-f0-9]{32})/share',path)
@@ -256,7 +309,13 @@ class Handler(BaseHTTPRequestHandler):
                 if body:raise ValueError('组件启动不接受额外命令')
                 return self.response(self.app.component_action(*match.groups()))
             match=re.fullmatch(r'/api/suite/(memory|qwen|phone)/([a-z-]+)',path)
-            if match:return self.response(self.app.adapters.post(*match.groups(),body))
+            if match:
+                if self.remote_origin and match.group(1)=='memory':
+                    settings=self.app.adapters.get('memory','settings')['settings']
+                    status=self.app.adapters.get('memory','status')
+                    if any(settings.values()) and status.get('running') is not True:
+                        raise PermissionError('此记忆服务会启动本机采集；请先在本机确认并启动，再远程保存')
+                return self.response(self.app.adapters.post(*match.groups(),body))
             if path=='/api/suite/shutdown':
                 if body:raise ValueError('关闭参数无效')
                 self.response({'stopping':True})
@@ -294,6 +353,9 @@ def main():
     parser.add_argument('--data-dir',type=Path,default=Path(os.environ.get('LOCALAPPDATA') or Path.home()/'.local'/'share')/'WorkOS-Suite')
     parser.add_argument('--isolated',action='store_true',help='独立测试Core，不连接现有WorkOS')
     parser.add_argument('--empty-roots',action='store_true',help='不添加默认资料目录')
+    parser.add_argument('--remote-config',type=Path,help='明确加载本机私有的 HTTPS 公网与账户配置')
+    parser.add_argument('--core-data-dir',type=Path,help='明确沿用本机已有研究数据；由套件内置后台承载')
+    parser.add_argument('--sync-root',type=Path,help='明确配置资料镜像文件夹；不迁移活动数据库')
     args=parser.parse_args()
     if not 1024<=args.port<=65535:parser.error('端口应在1024至65535之间')
     # Bind before starting any children, so port conflicts cannot leave workers.
@@ -305,7 +367,7 @@ def main():
     logging.basicConfig(level=logging.INFO,handlers=[RotatingFileHandler(args.data_dir/'suite.log',maxBytes=1_000_000,backupCount=2,encoding='utf-8')])
     app=None
     try:
-        app=Application(args.data_dir,args.port,isolated=args.isolated,empty_roots=args.empty_roots);server.app=app
+        app=Application(args.data_dir,args.port,isolated=args.isolated,empty_roots=args.empty_roots,remote_config=args.remote_config,core_data_dir=args.core_data_dir,sync_root=args.sync_root);server.app=app
         def stop(*_):threading.Thread(target=server.shutdown,daemon=True).start()
         signal.signal(signal.SIGINT,stop);signal.signal(signal.SIGTERM,stop)
         if hasattr(signal,'SIGBREAK'):signal.signal(signal.SIGBREAK,stop)

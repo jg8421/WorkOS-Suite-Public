@@ -35,3 +35,4 @@ jobs:
       - run: npx playwright install chromium
       - run: node tests/browser_suite.cjs
       - run: node tests/browser_file_keyboard.cjs
+      - run: node tests/browser_suite_remote.cjs

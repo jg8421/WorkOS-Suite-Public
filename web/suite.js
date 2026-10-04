@@ -27,12 +27,24 @@
       const result = await fetch(path, {...options, headers, credentials:'same-origin', signal:controller.signal});
       const contentType = result.headers.get('content-type') || '';
       const data = contentType.includes('json') ? await result.json() : {};
+      if(result.status===401&&data.login_url==='/auth/login')window.location.assign('/auth/login');
       if (!result.ok) { const detail = data.error?.message || data.error || data.detail || data.message; const error = new Error(typeof detail === 'string' ? detail : `请求未完成（${result.status}），请稍后重试。`); error.status = result.status; throw error; }
       return data;
     } catch (error) { if (error.name === 'AbortError') throw new Error('这一步需要更长时间。请刷新状态后重试，草稿已保留。'); throw error; }
     finally { clearTimeout(timer); }
   }
   const post = (path, body = {}) => api(path, {method:'POST',body:JSON.stringify(body)});
+  const remote = () => state.bootstrap.capabilities?.remote_request === true;
+  const localActions = new Set(['root-add','native-tool-launch','process-control','component-control','qwen-start','qwen-stop','qwen-trigger','qwen-config-save','qwen-panel','memory-start','memory-stop']);
+  function remoteControls() {
+    if(!remote())return;
+    document.querySelectorAll('[data-action]').forEach(button=>{if(localActions.has(button.dataset.action)){button.disabled=true;button.title='请在运行 Suite 的电脑本机操作。';}});
+    document.querySelectorAll('#qwen-config-form input,#qwen-config-form button,#memory-settings-form input,#memory-settings-form button').forEach(input=>{input.disabled=true;});
+    if(state.view==='files'){
+      const hint=$('#file-workbench .panel-header p');if(hint)hint.textContent='单击预览 · 双击 / Enter 下载文件或进入文件夹 · Ctrl / Shift 多选';
+      if(state.selected&&!state.selected.is_dir)document.querySelectorAll('[data-action="file-open"]').forEach(button=>{button.textContent='下载原文件';});
+    }
+  }
   const array = (data, key) => Array.isArray(data) ? data : (Array.isArray(data?.[key]) ? data[key] : []);
   const size = bytes => !Number.isFinite(Number(bytes)) ? '—' : Number(bytes) < 1024 ? `${Number(bytes)} B` : Number(bytes) < 1048576 ? `${(Number(bytes)/1024).toFixed(1)} KB` : `${(Number(bytes)/1048576).toFixed(1)} MB`;
   const date = value => { if (!value) return ''; const result = new Date(typeof value === 'number' && value < 1e12 ? value * 1000 : value); return Number.isNaN(result.valueOf()) ? '' : result.toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}); };
@@ -76,7 +88,12 @@
   }
   async function render() {
     const generation = ++state.renderId; const content = $('#content'); content.innerHTML = loading();
-    try { await ({workos:renderWorkOS,ideas:renderIdeas,files:renderFiles,memory:renderMemory,qwen:renderQwen,phone:renderPhone,processes:renderProcesses,runtime:renderRuntime})[state.view](generation); }
+    try {
+      if(remote()&&['phone','processes'].includes(state.view)){
+        content.innerHTML=`<div class="panel">${empty('在 Suite 所在电脑上使用', '手机连接、进程操作和原版桌面窗口需要在运行 Suite 的电脑本机操作；远程可以继续研究、整理文件和记录想法。')}</div>`;
+      }else await ({workos:renderWorkOS,ideas:renderIdeas,files:renderFiles,memory:renderMemory,qwen:renderQwen,phone:renderPhone,processes:renderProcesses,runtime:renderRuntime})[state.view](generation);
+      if(current(generation))remoteControls();
+    }
     catch (error) { if (generation === state.renderId) content.innerHTML = `<div class="panel">${empty('暂时无法读取',friendly(error),'<button class="button secondary" data-action="refresh">重试</button>')}</div>`; }
   }
   function current(generation) { return generation === state.renderId; }
@@ -112,6 +129,7 @@
     state.nativeToolsRead=Date.now();
   }
   function nativeToolButton(id) {
+    if(remote())return '<span class="caption">原版桌面窗口请在 Suite 所在电脑上打开。</span>';
     const tool=state.nativeTools?.find(tool=>tool.id===id),title=id==='files'?'打开完整文件工作台':'打开完整进程管理器';
     return `<div class="native-tool-entry"><button class="button secondary small" data-action="native-tool-launch" data-tool-id="${id}" ${tool?.can_launch?'':'disabled'} title="${escape(tool?.reason||'完整窗口使用原工具设置；不自动关闭已有应用。')}">${title} ↗</button>${!tool?.can_launch?`<span class="caption">${escape(tool?.reason||state.nativeToolsError||'完整窗口尚未就绪，请刷新状态。')}</span>`:id==='files'?'<span class="caption">完整窗口使用原工具的目录设置，可在窗口内选择目录。</span>':''}</div>`;
   }
@@ -202,6 +220,7 @@
       else if(['file-root','file-folder','file-go','file-mkdir','file-search','file-select','file-manage'].includes(action))button.disabled=locked||!state.rootId;
       else if(action==='file-restore')button.disabled=locked||!state.trashReceipts.length;
     }
+    remoteControls();
   }
   function focusFileList() { const row=document.querySelector(`.file-row[data-index="${state.fileFocus}"]`);(row||$('#file-table'))?.focus({preventScroll:true});row?.scrollIntoView({block:'nearest'}); }
   function selectAllFiles(selected=true) { if(fileLocked())return;state.fileSelection=new Set(selected?state.files.map(file=>file.path):[]);if(selected&&state.fileFocus<0)state.fileFocus=0;state.fileAnchor=state.fileFocus;updateFileSelection();busy(null,previewFileSelection); }
@@ -240,6 +259,9 @@
   async function openFileTarget(file,rootId) {
     if(fileLocked()||!file||state.view!=='files')return;
     if(file.is_dir)return loadFileFolder(file.path,rootId);
+    if(remote()){
+      const link=document.createElement('a');link.href=`/api/suite/file?root_id=${encodeURIComponent(rootId)}&path=${encodeURIComponent(file.path)}`;link.download=file.name;document.body.appendChild(link);link.click();link.remove();return;
+    }
     state.fileBusy=true;updateFileSelection();
     try{const result=await post('/api/suite/files/open',{root_id:rootId,path:file.path});toast(result.detail||'已交给原应用打开。');}
     finally{state.fileBusy=false;if(state.view==='files')updateFileSelection();}
@@ -286,6 +308,7 @@
       if($('#qwen-config-origin'))$('#qwen-config-origin').textContent=config.source==='original'?'当前使用原服务的配置。保存后直接更新原监听，不创建第二套配置。':'设置只修改监听规则，不会启动录音。';
     }
     $('#qwen-status-time').textContent=`状态更新于 ${new Date().toLocaleTimeString('zh-CN')} · 每 3 秒读取一次`;
+    remoteControls();
   }
   function scheduleQwenStatus(generation) {
     clearTimeout(qwenStatusTimer);if(state.view!=='qwen'||!current(generation))return;
@@ -352,6 +375,7 @@
     const clipboard={rootId:state.rootId,mode,items:files.map(file=>({...file,requests:new Map()}))};state.fileClipboard=clipboard;
     document.querySelectorAll('.file-row').forEach(row=>row.classList.toggle('cut',mode==='cut'&&state.fileSelection.has(state.files[Number(row.dataset.index)]?.path)));
     updateFileSelection();
+    if(remote()){toast(`已${mode==='cut'?'剪切':'复制'} ${files.length} 项；在本工作台的目标目录按 Ctrl + V。`);return;}
     try {const result=await post('/api/suite/files/clipboard',{root_id:clipboard.rootId,paths:clipboard.items.map(file=>file.path),mode});toast(result.system_clipboard?`${mode==='cut'?'已剪切':'已复制'} ${files.length} 项；可在这里或资源管理器粘贴。`:`${mode==='cut'?'已剪切':'已复制'} ${files.length} 项；在目标目录按 Ctrl + V。${result.detail||''}`);}
     catch(error){toast(`已保留 ${files.length} 项，可在工作台内粘贴。系统剪贴板暂不可用：${friendly(error)}`,true);}
   }

@@ -1,8 +1,8 @@
-# Bundled third-party software — WorkOS Suite 1.0.3
+# Bundled third-party software — WorkOS Suite 1.0.4
 
 This release retains upstream copyright notices and licenses. WorkOS Suite's own license does not replace these third-party terms. The corresponding-source download is provided beside the Windows binary package in the same release:
 
-[WorkOS-Suite-1.0.3-corresponding-sources.zip](https://github.com/jg8421/WorkOS-Suite-Public/releases/download/v1.0.3/WorkOS-Suite-1.0.3-corresponding-sources.zip)
+[WorkOS-Suite-1.0.4-corresponding-sources.zip](https://github.com/jg8421/WorkOS-Suite-Public/releases/download/v1.0.4/WorkOS-Suite-1.0.4-corresponding-sources.zip)
 
 `runtime-lock.json` records binary versions, official download URLs and SHA256 hashes. `app/deployment/third-party-source-lock.json` records source versions, fixed references, archive hashes and source verification methods.
 
@@ -616,6 +616,6 @@ Copyright notice:
   jloup@gzip.org          madler@alumni.caltech.edu
 ```
 
-## Native GUI in 1.0.3
+## Native GUI in 1.0.4
 
-The complete package now includes the original Files/Processes Tk windows with portable Tcl/Tk 8.6.15, PyMuPDF/MuPDF 1.28.2, tksheet, tkinterweb/Tkhtml, Markdown and pywin32. The native Files combination uses the AGPLv3 distribution route, with full AGPL text and original Tcl/Tk/native parser attribution in [NATIVE_GUI_THIRD_PARTY.md](../docs/NATIVE_GUI_THIRD_PARTY.md). Existing MIT notices do not replace the combination's AGPL requirements. The same-release [corresponding-source asset](https://github.com/jg8421/WorkOS-Suite-Public/releases/download/v1.0.3/WorkOS-Suite-1.0.3-corresponding-sources.zip) contains complete MuPDF and preferred PyMuPDF binding/build source, exact source locks, all license texts, the native application source and build instructions. Only enumerated PyMuPDF binary test-media fixtures are omitted, never build inputs. Optional COM sensors require real compatible hardware/providers. The portable GUI dependencies require no system install or registration.
+The complete package now includes the original Files/Processes Tk windows with portable Tcl/Tk 8.6.15, PyMuPDF/MuPDF 1.28.2, tksheet, tkinterweb/Tkhtml, Markdown and pywin32. The native Files combination uses the AGPLv3 distribution route, with full AGPL text and original Tcl/Tk/native parser attribution in [NATIVE_GUI_THIRD_PARTY.md](../docs/NATIVE_GUI_THIRD_PARTY.md). Existing MIT notices do not replace the combination's AGPL requirements. The same-release [corresponding-source asset](https://github.com/jg8421/WorkOS-Suite-Public/releases/download/v1.0.4/WorkOS-Suite-1.0.4-corresponding-sources.zip) contains complete MuPDF and preferred PyMuPDF binding/build source, exact source locks, all license texts, the native application source and build instructions. Only enumerated PyMuPDF binary test-media fixtures are omitted, never build inputs. Optional COM sensors require real compatible hardware/providers. The portable GUI dependencies require no system install or registration.
